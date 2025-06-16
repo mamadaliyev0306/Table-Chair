@@ -1,0 +1,6 @@
+@Table_Chair_HostAddress = http://localhost:5261
+
+GET {{Table_Chair_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
