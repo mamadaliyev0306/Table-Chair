@@ -87,6 +87,7 @@ namespace Table_Chair
 
             app.UseMiddlewaresDI();
             app.MapControllers();
+            app.UseDefaultFiles();
             app.UseStaticFiles();
             app.Run();
         }

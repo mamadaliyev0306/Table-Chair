@@ -1,0 +1,6 @@
+services:
+  table-chair:
+    image: ${DOCKER_REGISTRY-}tablechair
+    build:
+      context: .
+      dockerfile: Table-Chair/Dockerfile

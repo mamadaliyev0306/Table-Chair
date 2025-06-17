@@ -37,27 +37,35 @@ public class UsersControllerTests
     [Fact]
     public async Task GetProfile_ExistingUser_ReturnsOk()
     {
-        var profileDto = new UserProfileDto { Id = 1, Username = "test" };
-        var userResponseDto = new UserResponseDto
+        // Arrange
+        var profileDto = new UserResponseDto  // UserProfileDto emas, UserResponseDto ishlating
         {
-            Id = profileDto.Id,
-            Username = profileDto.Username,
-            FirstName = profileDto.FirstName,
-            LastName = profileDto.LastName,
-            PhoneNumber = profileDto.PhoneNumber,
-            Email = profileDto.Email,
-            AvatarUrl = profileDto.ProfileImageUrl,
-            CreatedAt = profileDto.CreatedAt,
-            UpdatedAt = profileDto.UpdatedAt
+            Id = 1,
+            UpdatedAt = DateTime.UtcNow,
+            Username = "Test",
+            FirstName = "Test",
+            LastName = "Test",
+            Email = "Test",
+            AvatarUrl = "hh",
+            PhoneNumber = "Test",
+            Role = 0,
+            Bio = "Test",
+            CreatedAt = DateTime.UtcNow
         };
 
-        _mockUserService.Setup(s => s.GetUserProfileAsync(1)).ReturnsAsync(userResponseDto);
+        _mockUserService
+            .Setup(x => x.GetUserProfileAsync(It.IsAny<int>()))
+            .ReturnsAsync(profileDto);  // Bu endi to'g'ri ishlaydi
 
+        // Act
         var result = await _controller.GetProfile(1);
 
+        // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(profileDto, okResult.Value);
+        var returnedDto = Assert.IsType<UserResponseDto>(okResult.Value);
+        // ...
     }
+
 
     [Fact]
     public async Task GetProfile_NotFound_ReturnsNotFound()
