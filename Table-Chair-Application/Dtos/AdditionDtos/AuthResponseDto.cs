@@ -9,9 +9,9 @@ namespace Table_Chair_Application.Dtos.AdditionDtos
 {
     public class AuthResponseDto
     {
-        public string Token { get; set; } = string.Empty;
+        public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
-        public DateTime TokenExpires { get; set; }
+        public DateTime AccessTokenExpiresAt { get; set; }
         public UserResponseDto UserResponse { get; set; } = null!;
     }
 }

@@ -18,16 +18,21 @@ namespace Table_Chair_Application.Repositorys
         {
             _context = context;
         }
-            public async Task<RefreshToken?> GetValidTokenAsync(string token)
-            {
-                return await _context.RefreshTokens
-                    .FirstOrDefaultAsync(rt =>
-                        rt.Token == token &&
-                        !rt.IsRevoked &&
-                        rt.ExpiresAt > DateTime.UtcNow);
-            }
+        public async Task<RefreshToken?> GetValidTokenAsync(string token)
+        {
+            token = token.Replace('+', '-')
+                         .Replace('/', '_')
+                         .Replace("=", "");
+            return await _context.RefreshTokens
+                .FirstOrDefaultAsync(rt =>
+                    rt.Token == token &&
+                    !rt.IsRevoked &&
+                    rt.ExpiresAt > DateTime.UtcNow);
+        }
 
-            public async Task<IEnumerable<RefreshToken>> GetUserRefreshTokensAsync(int userId)
+
+
+        public async Task<IEnumerable<RefreshToken>> GetUserRefreshTokensAsync(int userId)
             {
                 return await _context.RefreshTokens
                     .Where(rt => rt.UserId == userId)

@@ -175,7 +175,7 @@ namespace Table_Chair_Application.Services
 
             // Redis yangilash
             verificationData.Code = newCode;
-            verificationData.CreatedAt.AddMinutes(5);
+            verificationData.CreatedAt=DateTime.UtcNow;
 
             await db.StringSetAsync(
                 $"{VerificationPrefix}{email}",
@@ -232,7 +232,7 @@ namespace Table_Chair_Application.Services
                 var tokenExpires = loginDto.RememberMe
                         ? DateTime.UtcNow.AddDays(30)
                          : DateTime.UtcNow.AddHours(2);
-                return await GenerateAuthResponseAsync(user);
+                return await GenerateAuthResponseAsync(user,tokenExpires);
             }
             catch (Exception ex)
             {
@@ -256,7 +256,9 @@ namespace Table_Chair_Application.Services
                     throw new AppException("Foydalanuvchi topilmadi yoki faol emas");
 
                 // Yangi tokenlar generatsiya qilish
-                var authResponse = await GenerateAuthResponseAsync(user);
+                var tokenExpires = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes);
+                var authResponse = await GenerateAuthResponseAsync(user, tokenExpires);
+
 
                 // Eski tokenni bekor qilish
                 storedToken.IsRevoked = true;
@@ -351,20 +353,27 @@ namespace Table_Chair_Application.Services
             }
         }
 
+        public async Task LogoutAsync(string refreshToken)
+        {
+            var tokenEntity = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
+            if (tokenEntity != null)
+            {
+                _unitOfWork.RefreshTokens.Delete(tokenEntity);
+                await _unitOfWork.CompleteAsync();
+            }
+        }
 
 
-
-        private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user)
+        private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user,DateTime TokenExpires)
         {
             var accessToken = _tokenService.GenerateAccessToken(_mapper.Map<UserResponseDto>(user));
             var refreshToken = _tokenService.GenerateRefreshToken();
 
-            // Refresh tokenni bazaga saqlash
             var refreshTokenEntity = new RefreshToken
             {
                 Token = refreshToken,
                 UserId = user.Id,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.RefreshTokenExpirationDays),
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -373,12 +382,13 @@ namespace Table_Chair_Application.Services
 
             return new AuthResponseDto
             {
-                Token = accessToken,
+                AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                TokenExpires = DateTime.UtcNow.AddHours(_jwtSettings.EmailVerificationTokenExpirationHours),
+                AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
                 UserResponse = _mapper.Map<UserResponseDto>(user)
             };
         }
+
 
     }
 }

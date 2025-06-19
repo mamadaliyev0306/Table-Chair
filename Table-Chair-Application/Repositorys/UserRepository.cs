@@ -106,10 +106,18 @@ namespace Table_Chair_Application.Repositorys
 
         }
 
-        public Task<User> GetByVerificationTokenAsync(string token)
+
+        public async Task<User> GetByVerificationTokenAsync(string token)
         {
-            throw new NotImplementedException();
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.EmailVerificationToken == token &&
+                    u.EmailVerificationTokenExpires > DateTime.UtcNow &&
+                    !u.IsDeleted);
+
+            return user ?? throw new NotFoundException("User not found with the provided verification token.");
         }
+
         public async Task<bool> ExistsUserIdAsync(int userId)=>
             await _context.Users.AnyAsync(u=>u.Id == userId);
     }

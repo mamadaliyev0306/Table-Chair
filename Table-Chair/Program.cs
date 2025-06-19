@@ -65,13 +65,15 @@ namespace Table_Chair
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+        ClockSkew=TimeSpan.Zero
     };
 });
 
 
             var app = builder.Build();
-
+            app.MapGet("/healthz", () => Results.Ok("Healthy"));
+            app.MapGet("/", () => "Table Chair is running");
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -80,7 +82,11 @@ namespace Table_Chair
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            if (!app.Environment.IsProduction())
+            {
+                app.UseHttpsRedirection();
+            }
+
             app.UseCors("AllowAllOrigins");
             app.UseAuthentication();
             app.UseAuthorization();

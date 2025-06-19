@@ -69,7 +69,12 @@ namespace Table_Chair_Application.Services
             var randomNumber = new byte[32];
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
+            var base64 = Convert.ToBase64String(randomNumber);
+
+            // Base64URL formatga o'tkazish (URL xavfsiz qilish)
+            return base64.Replace('+', '-')
+                         .Replace('/', '_')
+                         .Replace("=", "");
         }
 
         // Generate email verification token for user

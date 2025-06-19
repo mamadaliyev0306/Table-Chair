@@ -1,6 +1,13 @@
+version: '3.8'
+
 services:
   table-chair:
-    image: ${DOCKER_REGISTRY-}tablechair
+    image: mamadaliyevmuhammadyusuf/tablechair:latest
     build:
       context: .
-      dockerfile: Table-Chair/Dockerfile
+      dockerfile: Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
