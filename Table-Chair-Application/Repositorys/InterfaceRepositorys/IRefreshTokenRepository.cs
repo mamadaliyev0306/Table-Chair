@@ -16,6 +16,6 @@ namespace Table_Chair_Application.Repositorys.InterfaceRepositorys
         Task<bool> IsTokenValid(string token);
         Task<bool> RevokeAllRefreshTokensForUserAsync(int userId);
         Task<IEnumerable<RefreshToken>> GetExpiredTokensAsync();
-        Task<int> RemoveExpiredTokensAsync();
+        Task RemoveExpiredTokensAsync(IEnumerable<RefreshToken> tokens);
     }
 }

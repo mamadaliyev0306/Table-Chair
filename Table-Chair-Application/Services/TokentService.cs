@@ -196,7 +196,7 @@ namespace Table_Chair_Application.Services
             var tokens = await _unitOfWork.RefreshTokens
                 .GetUserRefreshTokensAsync(userId);
 
-            _unitOfWork.RefreshTokens.RemoveExpiredTokensAsync(tokens);
+            await  _unitOfWork.RefreshTokens.RemoveExpiredTokensAsync(tokens);
             await _unitOfWork.CompleteAsync();
         }
     }
