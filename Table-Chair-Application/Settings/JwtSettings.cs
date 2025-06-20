@@ -16,7 +16,7 @@ namespace Table_Chair_Application.Settings
             public int AccessTokenExpirationMinutes { get; set; }
             public int RefreshTokenExpirationDays { get; set; }
             public int EmailVerificationTokenExpirationHours { get; set; }
-            public int PasswordResetTokenExpirationHours { get; set; }
+            public int PasswordResetTokenExpirationMinutes { get; set; }
             public string Audience { get; internal set; } = string.Empty;
         }
     }

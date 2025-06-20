@@ -35,6 +35,8 @@ namespace Table_Chair_Application.Services
         private readonly IDistributedCache _distributedCache;
         private const string VerificationPrefix = "verify:email:";
         private const string RateLimitPrefix = "rate:email:";
+
+        private const string TokenBlacklistPrefix = "blacklist:token:";
         public AuthService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
@@ -65,56 +67,35 @@ namespace Table_Chair_Application.Services
 
         public async Task<UserResponseDto> RegisterAsync(UserRegisterDto registerDto)
         {
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // Validatsiya
-                if (await _unitOfWork.Users.UsernameExistsAsync(registerDto.Username))
-                    throw new AppException("Bu foydalanuvchi nomi band");
+                // Validation checks
+                await ValidateRegistrationInput(registerDto);
 
-                if (await _unitOfWork.Users.EmailExistsAsync(registerDto.Email))
-                    throw new AppException("Bu email allaqachon ro'yxatdan o'tgan");
-
-                if (await _unitOfWork.Users.PhoneExistsAsync(registerDto.PhoneNumber))
-                    throw new AppException("Bu telefon raqam allaqachon ro'yxatdan o'tgan");
-
-                // Rate limit tekshirish
+                // Rate limiting
                 if (!await CanSendVerificationEmail(registerDto.Email))
                 {
-                    throw new AppException("Juda ko'p so'rovlar. Iltimos, biroz kutib turing.");
+                    throw new AppException("Too many requests. Please wait before trying again.");
                 }
 
-                // User yaratish (lekin hali saqlamaymiz)
-                var user = _mapper.Map<User>(registerDto);
-                user.PasswordHash = _passwordHasher.HashPassword(registerDto.Password);
-                user.Role = Table_Chair_Entity.Enums.Role.Customer;
-                user.IsActive = false;
-                user.EmailVerified = false;
+                // Create user
+                var user = CreateUserFromDto(registerDto);
 
-                // Tasdiqlash kodi yaratish
+                // Generate verification code
                 var verificationCode = GenerateRandomCode();
+                await StoreVerificationData(user, verificationCode);
 
-                // Redisga saqlash
-                var verificationData = new VerificationData
-                {
-                    User = user,
-                    Code = verificationCode,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                var db = _redis.GetDatabase();
-                await db.StringSetAsync(
-                    $"{VerificationPrefix}{user.Email}",
-                    JsonSerializer.Serialize(verificationData),
-                    TimeSpan.FromMinutes(15));
-
-                // Emailga kod yuborish
+                // Send email
                 await _emailService.SendVerificationEmail(user.Email, verificationCode);
 
+                await transaction.CommitAsync();
                 return _mapper.Map<UserResponseDto>(user);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ro'yxatdan o'tishda xato yuz berdi");
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Registration failed for {Email}", registerDto.Email);
                 throw;
             }
         }
@@ -125,32 +106,40 @@ namespace Table_Chair_Application.Services
             var verificationJson = await db.StringGetAsync($"{VerificationPrefix}{email}");
 
             if (verificationJson.IsNullOrEmpty)
-                return false;
-
-            var verificationData = JsonSerializer.Deserialize<VerificationData>(verificationJson);
-
-            // Kodni tekshirish
-            if (verificationData.Code != code ||
-                DateTime.Parse(verificationData.CreatedAt.ToString()).AddMinutes(15) < DateTime.UtcNow)
             {
+                _logger.LogWarning("Verification data not found for {Email}", email);
                 return false;
             }
 
-            // User ma'lumotlarini olish
-            var userJson = JsonSerializer.Serialize(verificationData.User);
-            var user = JsonSerializer.Deserialize<User>(userJson);
+            var verificationData = JsonSerializer.Deserialize<VerificationData>(verificationJson.ToString());
+            if (verificationData == null)
+            {
+                _logger.LogWarning("Failed to deserialize verification data for {Email}", email);
+                return false;
+            }
+
+            // Validate code
+            if (!ValidateVerificationCode(verificationData, code))
+            {
+                _logger.LogWarning("Invalid verification code for {Email}", email);
+                return false;
+            }
+
+            // Activate user
+            var user = verificationData.User;
             user.IsActive = true;
             user.EmailVerified = true;
             user.EmailVerificationTokenExpires = DateTime.UtcNow.AddMinutes(15);
             user.LastPasswordChangeDate = DateTime.UtcNow;
-            user.EmailVerificationToken = _tokenService.GenerateEmailVerificationToken(user.Id);
-            // Databasega saqlash
+
+            // Save to database
             await _unitOfWork.Users.AddAsync(user);
             await _unitOfWork.CompleteAsync();
 
-            // Redisdan o'chirish
+            // Cleanup
             await db.KeyDeleteAsync($"{VerificationPrefix}{email}");
 
+            _logger.LogInformation("Email verified successfully for {Email}", email);
             return true;
         }
 
@@ -175,7 +164,7 @@ namespace Table_Chair_Application.Services
 
             // Redis yangilash
             verificationData.Code = newCode;
-            verificationData.CreatedAt=DateTime.UtcNow;
+            verificationData.CreatedAt = DateTime.UtcNow;
 
             await db.StringSetAsync(
                 $"{VerificationPrefix}{email}",
@@ -186,113 +175,79 @@ namespace Table_Chair_Application.Services
             return await _emailService.SendVerificationEmail(email, newCode);
         }
 
-        private async Task<bool> CanSendVerificationEmail(string email)
-        {
-            var db = _redis.GetDatabase();
-            var key = $"{RateLimitPrefix}{email}";
-
-            // So'rovlar sonini oshirish
-            var current = await db.StringIncrementAsync(key);
-
-            // Agar birinchi marta bo'lsa, muddat belgilash
-            if (current == 1)
-            {
-                await db.KeyExpireAsync(key, TimeSpan.FromHours(1));
-            }
-
-            // 1 soatda maksimal 5 marta ruxsat berish
-            return current <= 5;
-        }
-
-
-        private string GenerateRandomCode()
-        {
-            var random = new Random();
-            return random.Next(100000, 999999).ToString(); // 6 raqamli kod
-        }
-
         public async Task<AuthResponseDto> LoginAsync(UserLoginDto loginDto)
         {
-            try
+            // Find user
+            var user = await FindUserByLogin(loginDto.Login);
+
+            // Ensure user is not null before proceeding
+            if (user == null)
             {
-                // Foydalanuvchini topish
-                User? user = loginDto.Login.Contains('@')
-                    ? await _unitOfWork.Users.GetByEmailAsync(loginDto.Login)
-                    : await _unitOfWork.Users.GetByUsernameAsync(loginDto.Login);
-
-                if (user == null || !_passwordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
-                    throw new AppException("Login yoki parol noto'g'ri");
-
-                if (!user.IsActive)
-                    throw new AppException("Foydalanuvchi hisobi faol emas");
-
-                if (!user.EmailVerified)
-                    throw new AppException("Iltimos, email manzilingizni tasdiqlang");
-
-                var tokenExpires = loginDto.RememberMe
-                        ? DateTime.UtcNow.AddDays(30)
-                         : DateTime.UtcNow.AddHours(2);
-                return await GenerateAuthResponseAsync(user,tokenExpires);
+                throw new AppException("Invalid login credentials");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Tizimga kirishda xato yuz berdi");
-                throw;
-            }
+
+            // Validate credentials
+            ValidateUserForLogin(user, loginDto.Password);
+
+            // Generate tokens
+            var tokenExpires = loginDto.RememberMe
+                ? DateTime.UtcNow.AddDays(30)
+                : DateTime.UtcNow.AddHours(2);
+
+            return await GenerateAuthResponseAsync(user, tokenExpires);
         }
 
         public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
         {
-            try
+            // Validate token
+            var storedToken = await ValidateRefreshToken(refreshToken);
+
+            // Get user
+            var user = await _unitOfWork.Users.GetByIdAsync(storedToken.UserId);
+            if (user == null || !user.IsActive)
             {
-                // Refresh tokenni tekshirish
-                var storedToken = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
-                if (storedToken == null)
-                    throw new AppException("Yaroqsiz refresh token");
-
-                // Foydalanuvchini tekshirish
-                var user = await _unitOfWork.Users.GetByIdAsync(storedToken.UserId);
-                if (user == null || !user.IsActive)
-                    throw new AppException("Foydalanuvchi topilmadi yoki faol emas");
-
-                // Yangi tokenlar generatsiya qilish
-                var tokenExpires = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes);
-                var authResponse = await GenerateAuthResponseAsync(user, tokenExpires);
-
-
-                // Eski tokenni bekor qilish
-                storedToken.IsRevoked = true;
-                storedToken.RevokedAt = DateTime.UtcNow;
-                _unitOfWork.RefreshTokens.Update(storedToken);
-
-                await _unitOfWork.CompleteAsync();
-
-                return authResponse;
+                _logger.LogWarning("User not found or inactive for token {Token}", refreshToken);
+                throw new AppException("User not found or inactive");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Token yangilashda xato yuz berdi");
-                throw;
-            }
+
+            // Generate new tokens
+            var tokenExpires = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes);
+            var authResponse = await GenerateAuthResponseAsync(user, tokenExpires);
+
+            // Revoke old token
+            await RevokeRefreshToken(storedToken);
+
+            _logger.LogInformation("Token refreshed successfully for user {UserId}", user.Id);
+            return authResponse;
         }
 
         public async Task<bool> RevokeRefreshTokenAsync(string refreshToken)
         {
-            try
-            {
-                var storedToken = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
-                if (storedToken == null) return false;
+            var storedToken = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
 
-                storedToken.IsRevoked = true;
-                storedToken.RevokedAt = DateTime.UtcNow;
-                _unitOfWork.RefreshTokens.Update(storedToken);
-                await _unitOfWork.CompleteAsync();
-                return true;
-            }
-            catch (Exception ex)
+            if (storedToken == null) return false;
+
+            storedToken.IsRevoked = true;
+            storedToken.RevokedAt = DateTime.UtcNow;
+
+            // Add to blacklist
+            await AddToTokenBlacklist(storedToken.Token, storedToken.ExpiresAt);
+
+            _unitOfWork.RefreshTokens.Update(storedToken);
+            await _unitOfWork.CompleteAsync();
+
+            _logger.LogInformation("Token revoked: {Token}", refreshToken);
+            return true;
+        }
+
+        public async Task LogoutAsync(string refreshToken)
+        {
+            var tokenEntity = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
+
+            if (tokenEntity != null)
             {
-                _logger.LogError(ex, "Tokenni bekor qilishda xato yuz berdi");
-                throw;
+                await RevokeRefreshToken(tokenEntity);
+                _logger.LogInformation("User logged out. Token revoked: {Token}", refreshToken);
             }
         }
 
@@ -306,7 +261,7 @@ namespace Table_Chair_Application.Services
                 // Parolni tiklash tokeni yaratish
                 var resetToken = _tokenService.GeneratePasswordResetToken(user.Id);
                 user.ResetPasswordToken = resetToken;
-                user.ResetPasswordTokenExpires = DateTime.UtcNow.AddHours(_jwtSettings.PasswordResetTokenExpirationHours);
+                user.ResetPasswordTokenExpires = DateTime.UtcNow.AddMinutes(_jwtSettings.PasswordResetTokenExpirationMinutes);
 
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.CompleteAsync();
@@ -352,19 +307,127 @@ namespace Table_Chair_Application.Services
                 throw;
             }
         }
-
-        public async Task LogoutAsync(string refreshToken)
+        public async Task CleanupExpiredTokensAsync()
         {
-            var tokenEntity = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
-            if (tokenEntity != null)
+            try
             {
-                _unitOfWork.RefreshTokens.Delete(tokenEntity);
-                await _unitOfWork.CompleteAsync();
+                var removedCount = await _unitOfWork.RefreshTokens.RemoveExpiredTokensAsync();
+                _logger.LogInformation("Removed {Count} expired refresh tokens", removedCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while cleaning up expired tokens");
+                throw;
+            }
+        }
+        #region Private Methods
+
+        private async Task ValidateRegistrationInput(UserRegisterDto registerDto)
+        {
+            if (await _unitOfWork.Users.UsernameExistsAsync(registerDto.Username))
+                throw new AppException("Username is already taken");
+
+            if (await _unitOfWork.Users.EmailExistsAsync(registerDto.Email))
+                throw new AppException("Email is already registered");
+
+            if (await _unitOfWork.Users.PhoneExistsAsync(registerDto.PhoneNumber))
+                throw new AppException("Phone number is already registered");
+        }
+
+        private User CreateUserFromDto(UserRegisterDto registerDto)
+        {
+            var user = _mapper.Map<User>(registerDto);
+            user.PasswordHash = _passwordHasher.HashPassword(registerDto.Password);
+            user.Role = Table_Chair_Entity.Enums.Role.Customer;
+            user.IsActive = false;
+            user.EmailVerified = false;
+            return user;
+        }
+
+        private async Task StoreVerificationData(User user, string verificationCode)
+        {
+            var verificationData = new VerificationData
+            {
+                User = user,
+                Code = verificationCode,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var db = _redis.GetDatabase();
+            await db.StringSetAsync(
+                $"{VerificationPrefix}{user.Email}",
+                JsonSerializer.Serialize(verificationData),
+                TimeSpan.FromMinutes(15));
+        }
+
+        private async Task<User?> FindUserByLogin(string login)
+        {
+            if (string.IsNullOrEmpty(login))
+            {
+                return null; // Handle null or empty login input gracefully
+            }
+
+            return login.Contains('@')
+                ? await _unitOfWork.Users.GetByEmailAsync(login)
+                : await _unitOfWork.Users.GetByUsernameAsync(login);
+        }
+
+        private void ValidateUserForLogin(User user, string password)
+        {
+            if (user == null || !_passwordHasher.VerifyPassword(password, user.PasswordHash))
+                throw new AppException("Invalid login credentials");
+
+            if (!user.IsActive)
+                throw new AppException("User account is not active");
+
+            if (!user.EmailVerified)
+                throw new AppException("Please verify your email address");
+        }
+
+        private async Task<RefreshToken> ValidateRefreshToken(string refreshToken)
+        {
+            var db = _redis.GetDatabase();
+            if (await db.KeyExistsAsync($"{TokenBlacklistPrefix}{refreshToken}"))
+            {
+                throw new AppException("This token has been revoked");
+            }
+            var storedToken = await _unitOfWork.RefreshTokens.GetValidTokenAsync(refreshToken);
+
+            if (storedToken == null || storedToken.IsRevoked || storedToken.IsExpired)
+            {
+                _logger.LogWarning("Invalid refresh token: {Token}", refreshToken);
+                throw new AppException("Invalid refresh token");
+            }
+
+            return storedToken;
+        }
+
+        private async Task RevokeRefreshToken(RefreshToken token)
+        {
+            token.IsRevoked = true;
+            token.RevokedAt = DateTime.UtcNow;
+
+            // Add to blacklist
+            await AddToTokenBlacklist(token.Token, token.ExpiresAt);
+
+            _unitOfWork.RefreshTokens.Update(token);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        private async Task AddToTokenBlacklist(string token, DateTime expiresAt)
+        {
+            var db = _redis.GetDatabase();
+            var ttl = expiresAt - DateTime.UtcNow;
+            if (ttl > TimeSpan.Zero)
+            {
+                await db.StringSetAsync(
+                    $"{TokenBlacklistPrefix}{token}",
+                    "revoked",
+                    ttl);
             }
         }
 
-
-        private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user,DateTime TokenExpires)
+        private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user, DateTime tokenExpires)
         {
             var accessToken = _tokenService.GenerateAccessToken(_mapper.Map<UserResponseDto>(user));
             var refreshToken = _tokenService.GenerateRefreshToken();
@@ -384,11 +447,36 @@ namespace Table_Chair_Application.Services
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                AccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
+                AccessTokenExpiresAt = tokenExpires,
                 UserResponse = _mapper.Map<UserResponseDto>(user)
             };
         }
 
+        private string GenerateRandomCode()
+        {
+            return new Random().Next(100000, 999999).ToString(); // 6-digit code
+        }
+
+        private bool ValidateVerificationCode(VerificationData verificationData, string code)
+        {
+            return verificationData.Code == code &&
+                   verificationData.CreatedAt.AddMinutes(15) > DateTime.UtcNow;
+        }
+
+        private async Task<bool> CanSendVerificationEmail(string email)
+        {
+            var db = _redis.GetDatabase();
+            var key = $"{RateLimitPrefix}{email}";
+            var current = await db.StringIncrementAsync(key);
+
+            if (current == 1)
+            {
+                await db.KeyExpireAsync(key, TimeSpan.FromHours(1));
+            }
+
+            return current <= 5; // Max 5 attempts per hour
+        }
 
     }
+    #endregion
 }

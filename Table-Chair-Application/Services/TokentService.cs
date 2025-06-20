@@ -69,13 +69,9 @@ namespace Table_Chair_Application.Services
             var randomNumber = new byte[32];
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
-            var base64 = Convert.ToBase64String(randomNumber);
-
-            // Base64URL formatga o'tkazish (URL xavfsiz qilish)
-            return base64.Replace('+', '-')
-                         .Replace('/', '_')
-                         .Replace("=", "");
+            return Convert.ToBase64String(randomNumber);
         }
+
 
         // Generate email verification token for user
         public string GenerateEmailVerificationToken(int userId)
@@ -86,7 +82,7 @@ namespace Table_Chair_Application.Services
         // Generate password reset token for user
         public string GeneratePasswordResetToken(int userId)
         {
-            return GenerateJwtToken(userId, _jwtSettings.PasswordResetTokenExpirationHours);
+            return GenerateJwtToken(userId, _jwtSettings.PasswordResetTokenExpirationMinutes);
         }
 
         // Validate access token
@@ -118,7 +114,15 @@ namespace Table_Chair_Application.Services
         {
             return await _unitOfWork.RefreshTokens.RevokeAllRefreshTokensForUserAsync(userId);
         }
+        public async Task<bool> RevokeRefreshTokenAsync(string token)
+        {
+            var refreshToken = await _unitOfWork.RefreshTokens.GetValidTokenAsync(token);
+            if (refreshToken == null) return false;
 
+            await _unitOfWork.RefreshTokens.RevokeTokenAsync(refreshToken.Id, "system",
+            "User session cleanup");
+            return true;
+        }
         // Generate JWT token with specific expiration
         private string GenerateJwtToken(int userId, int expirationHours)
         {
@@ -184,6 +188,16 @@ namespace Table_Chair_Application.Services
                 _logger.LogError(ex, "Failed to validate JWT token.");
                 return null;
             }
+
+        }
+        public async Task CleanupOldTokensAsync(int userId)
+        {
+            // Faqat oxirgi 5 ta tokenni saqlab, qolganlarini o'chirish
+            var tokens = await _unitOfWork.RefreshTokens
+                .GetUserRefreshTokensAsync(userId);
+
+            _unitOfWork.RefreshTokens.RemoveExpiredTokensAsync(tokens);
+            await _unitOfWork.CompleteAsync();
         }
     }
 }

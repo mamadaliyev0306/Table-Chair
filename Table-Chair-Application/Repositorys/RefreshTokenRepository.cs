@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Polly;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,10 +21,14 @@ namespace Table_Chair_Application.Repositorys
         }
         public async Task<RefreshToken?> GetValidTokenAsync(string token)
         {
-            token = token.Replace('+', '-')
-                         .Replace('/', '_')
-                         .Replace("=", "");
+            var validTokens = await _context.RefreshTokens
+                .IgnoreQueryFilters()
+                .Include(x => x.User)
+                .ToListAsync();
+
             return await _context.RefreshTokens
+                .IgnoreQueryFilters()
+                .Include(rt => rt.User)
                 .FirstOrDefaultAsync(rt =>
                     rt.Token == token &&
                     !rt.IsRevoked &&
@@ -71,6 +76,20 @@ namespace Table_Chair_Application.Repositorys
         {
             return await _context.RefreshTokens
                 .AllAsync(a=>a.UserId == userId);
+        }
+
+        public async Task<IEnumerable<RefreshToken>> GetExpiredTokensAsync()
+        {
+            return await _context.RefreshTokens
+                .Where(rt => rt.ExpiresAt <= DateTime.UtcNow)
+                .ToListAsync();
+        }
+
+        public async Task<int> RemoveExpiredTokensAsync()
+        {
+            var expiredTokens = await GetExpiredTokensAsync();
+            _context.RefreshTokens.RemoveRange(expiredTokens);
+            return await _context.SaveChangesAsync();
         }
     }
 }

@@ -81,8 +81,8 @@ public class FurnitureDbContext : DbContext
         // RefreshToken uchun filter
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(rt =>
             !rt.IsRevoked &&
-            rt.User != null && !rt.User.IsDeleted &&
             rt.ExpiresAt > DateTime.UtcNow);
+
 
         // Qo'shimcha konfiguratsiyalar
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FurnitureDbContext).Assembly);
