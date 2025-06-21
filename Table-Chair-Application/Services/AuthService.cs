@@ -307,19 +307,6 @@ namespace Table_Chair_Application.Services
                 throw;
             }
         }
-        public async Task CleanupExpiredTokensAsync()
-        {
-            try
-            {
-                var removedCount = await _unitOfWork.RefreshTokens.RemoveExpiredTokensAsync();
-                _logger.LogInformation("Removed {Count} expired refresh tokens", removedCount);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error while cleaning up expired tokens");
-                throw;
-            }
-        }
         #region Private Methods
 
         private async Task ValidateRegistrationInput(UserRegisterDto registerDto)
