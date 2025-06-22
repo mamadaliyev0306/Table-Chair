@@ -11,6 +11,7 @@ using Table_Chair_Application.Repositorys.InterfaceRepositorys;
 using StackExchange.Redis;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Table_Chair_Application.CacheServices;
 
 namespace Table_Chair_Application.Emails
 {
@@ -22,7 +23,7 @@ namespace Table_Chair_Application.Emails
         private readonly IEmailRepository _emailRepository;
         private readonly SmtpSettings _smtpSettings;
         private readonly IConnectionMultiplexer _redis;
-        private readonly IDistributedCache _distributedCache;
+        private readonly ICacheService _cacheService;
         private const string EmailHistoryPrefix = "email:history:";
         private const string RateLimitPrefix = "email:rate:";
         public EmailService(
@@ -31,7 +32,7 @@ namespace Table_Chair_Application.Emails
             ILogger<EmailService> logger,
             IEmailRepository emailRepository,
             IOptions<SmtpSettings> options,
-            IDistributedCache distributedCache,
+            ICacheService cacheService,
             IConnectionMultiplexer redis)
             
         {
@@ -41,7 +42,7 @@ namespace Table_Chair_Application.Emails
             _emailRepository = emailRepository;
             _smtpSettings = options.Value;
             _redis = redis;
-            _distributedCache = distributedCache;
+            _cacheService = cacheService;
         }
 
         public async Task SendEmailVerificationAsync(string email, string name, string token)
@@ -134,32 +135,31 @@ namespace Table_Chair_Application.Emails
 
         public async Task<List<DateTime>> GetEmailHistory(string email)
         {
-            var db = _redis.GetDatabase();
             var emailHistoryKey = $"{EmailHistoryPrefix}{email}";
 
-            var history = await db.ListRangeAsync(emailHistoryKey);
+            var history = await _cacheService.ListRangeAsync(emailHistoryKey);
 
             return history
                 .Select(x =>
                 {
-                    var json = x.ToString(); // Convert RedisValue to string
-                    if (string.IsNullOrEmpty(json)) // Handle null or empty values
+                    var json = x.ToString(); // Convert RedisValue to string  
+                    if (string.IsNullOrEmpty(json)) // Handle null or empty values  
                     {
                         _logger.LogWarning($"Null or empty value found in email history for: {email}");
-                        return (DateTime?)null; // Return null for invalid entries
+                        return (DateTime?)null; // Return null for invalid entries  
                     }
 
                     var historyItem = JsonSerializer.Deserialize<EmailHistoryItem>(json);
                     if (historyItem == null || historyItem.SentTime == default)
                     {
                         _logger.LogWarning($"Invalid or null EmailHistoryItem found for: {email}");
-                        return (DateTime?)null; // Return null for invalid entries
+                        return (DateTime?)null; // Return null for invalid entries  
                     }
 
-                    return historyItem.SentTime; // Return valid DateTime
+                    return historyItem.SentTime; // Return valid DateTime  
                 })
-                .Where(x => x.HasValue) // Filter out null values
-                .Select(x => x.Value) // Extract non-null DateTime values
+                .Where(x => x.HasValue) // Filter out null values  
+                .Select(a => a.Value) // Safely extract non-null DateTime values without null-forgiving operator  
                 .ToList();
         }
 
@@ -172,16 +172,16 @@ namespace Table_Chair_Application.Emails
 
         private async Task<bool> CanSendEmail(string email)
         {
-            var db = _redis.GetDatabase();
+           // var db = _redis.GetDatabase();
             var key = $"{RateLimitPrefix}{email}";
 
             // So'rovlar sonini oshirish
-            var current = await db.StringIncrementAsync(key);
+            var current = await _cacheService.IncrementAsync(key);
 
             // Agar birinchi marta bo'lsa, muddat belgilash
             if (current == 1)
             {
-                await db.KeyExpireAsync(key, TimeSpan.FromHours(1));
+                await _cacheService.KeyExpireAsync(key, TimeSpan.FromHours(1));
             }
 
             // 1 soatda maksimal 5 marta ruxsat berish
@@ -190,7 +190,7 @@ namespace Table_Chair_Application.Emails
 
         private async Task LogEmailSent(string email)
         {
-            var db = _redis.GetDatabase();
+           // var db = _redis.GetDatabase();
             var emailHistoryKey = $"{EmailHistoryPrefix}{email}";
             var historyItem = new EmailHistoryItem
             {
@@ -198,8 +198,8 @@ namespace Table_Chair_Application.Emails
                 SentTime = DateTime.UtcNow
             };
 
-            await db.ListLeftPushAsync(emailHistoryKey, JsonSerializer.Serialize(historyItem));
-            await db.KeyExpireAsync(emailHistoryKey, TimeSpan.FromDays(1));
+            await _cacheService.ListLeftPushAsync(emailHistoryKey, JsonSerializer.Serialize(historyItem));
+            await _cacheService.KeyExpireAsync(emailHistoryKey, TimeSpan.FromDays(1));
         }
 
         private async Task<bool> SendEmailAsync(string email, string subject, string body)
@@ -240,42 +240,6 @@ namespace Table_Chair_Application.Emails
             public string Email { get; set; } = null!;
             public DateTime SentTime { get; set; }
         }
-
-        //private string GenerateVerificationCode()
-        //{
-        //    var random = new Random();
-        //    return random.Next(100000, 999999).ToString(); // 6 raqamli kod
-        //}
-        //private async Task<bool> SendEmailAsync(string email, string subject, string message)
-        //{
-        //    try
-        //    {
-        //        var mailMessage = new MailMessage(_smtpSettings.FromEmail, email, subject, message);
-        //        if (mailMessage == null)
-        //        {
-        //            return false;
-        //        }
-        //        mailMessage.IsBodyHtml = true;
-
-        //        var smtpClient = new SmtpClient(_smtpSettings.Server)
-        //        {
-        //            Port = _smtpSettings.Port,
-        //            Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
-        //            EnableSsl = _smtpSettings.EnableSsl,
-        //        };
-
-        //        await smtpClient.SendMailAsync(mailMessage);
-        //        _logger.LogInformation($"Email muvaffaqiyatli yuborildi: {email}");
-        //        return true;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, $"Email yuborishda xatolik: {email}");
-        //        return false;
-        //    }
-        //}
-
-
     }
 }
 

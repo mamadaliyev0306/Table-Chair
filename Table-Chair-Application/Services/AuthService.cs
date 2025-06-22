@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using Table_Chair_Application.CacheServices;
 using Table_Chair_Application.Dtos.AdditionDtos;
 using Table_Chair_Application.Dtos.UserDtos;
 using Table_Chair_Application.Emails;
@@ -33,6 +34,7 @@ namespace Table_Chair_Application.Services
         private readonly JwtSettings _jwtSettings;
         private readonly IConnectionMultiplexer _redis;
         private readonly IDistributedCache _distributedCache;
+        private readonly ICacheService _cacheService;
         private const string VerificationPrefix = "verify:email:";
         private const string RateLimitPrefix = "rate:email:";
 
@@ -46,7 +48,8 @@ namespace Table_Chair_Application.Services
             ILogger<AuthService> logger,
             IConfiguration configuration,
             IConnectionMultiplexer connectionMultiplexer,
-            IDistributedCache distributedCache)
+            IDistributedCache distributedCache,
+            ICacheService cacheService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -56,6 +59,7 @@ namespace Table_Chair_Application.Services
             _logger = logger;
             _distributedCache = distributedCache;
             _redis = connectionMultiplexer;
+            _cacheService = cacheService;
             var jwtSettingsSection = configuration.GetSection("Jwt");
             if (jwtSettingsSection == null)
             {
@@ -102,16 +106,16 @@ namespace Table_Chair_Application.Services
 
         public async Task<bool> VerifyEmailAsync(string email, string code)
         {
-            var db = _redis.GetDatabase();
-            var verificationJson = await db.StringGetAsync($"{VerificationPrefix}{email}");
+          //  var db = _redis.GetDatabase();
+            var verificationJson = await _cacheService.GetStringAsync($"{VerificationPrefix}{email}");
 
-            if (verificationJson.IsNullOrEmpty)
+            if (string.IsNullOrEmpty(verificationJson))
             {
                 _logger.LogWarning("Verification data not found for {Email}", email);
                 return false;
             }
 
-            var verificationData = JsonSerializer.Deserialize<VerificationData>(verificationJson.ToString());
+            var verificationData = JsonSerializer.Deserialize<VerificationData>(verificationJson);
             if (verificationData == null)
             {
                 _logger.LogWarning("Failed to deserialize verification data for {Email}", email);
@@ -137,7 +141,7 @@ namespace Table_Chair_Application.Services
             await _unitOfWork.CompleteAsync();
 
             // Cleanup
-            await db.KeyDeleteAsync($"{VerificationPrefix}{email}");
+            await _cacheService.RemoveAsync($"{VerificationPrefix}{email}");
 
             _logger.LogInformation("Email verified successfully for {Email}", email);
             return true;
@@ -145,33 +149,38 @@ namespace Table_Chair_Application.Services
 
         public async Task<bool> ResendVerificationEmailAsync(string email)
         {
-            // Rate limit tekshirish
+            // Rate limit check  
             if (!await CanSendVerificationEmail(email))
             {
-                throw new AppException("Juda ko'p so'rovlar. Iltimos, biroz kutib turing.");
+                throw new AppException("Too many requests. Please wait before trying again.");
             }
 
-            var db = _redis.GetDatabase();
-            var verificationJson = await db.StringGetAsync($"{VerificationPrefix}{email}");
+            var verificationJson = await _cacheService.GetStringAsync($"{VerificationPrefix}{email}");
 
-            if (verificationJson.IsNullOrEmpty)
+            // Fixing CS8602: Ensure verificationJson is not null before deserialization  
+            if (string.IsNullOrEmpty(verificationJson))
                 return false;
 
             var verificationData = JsonSerializer.Deserialize<VerificationData>(verificationJson);
 
-            // Yangi kod yaratish
+            // Fixing CS8602: Ensure verificationData is not null before accessing its properties  
+            if (verificationData == null)
+                return false;
+
+            // Generate new code  
             var newCode = GenerateRandomCode();
 
-            // Redis yangilash
+            // Update Redis  
             verificationData.Code = newCode;
             verificationData.CreatedAt = DateTime.UtcNow;
 
-            await db.StringSetAsync(
+           // var db = _redis.GetDatabase();
+            await _cacheService.SetStringAsync(
                 $"{VerificationPrefix}{email}",
                 JsonSerializer.Serialize(verificationData),
                 TimeSpan.FromMinutes(15));
 
-            // Yangi kodni yuborish
+            // Send new code  
             return await _emailService.SendVerificationEmail(email, newCode);
         }
 
@@ -340,8 +349,8 @@ namespace Table_Chair_Application.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            var db = _redis.GetDatabase();
-            await db.StringSetAsync(
+          //   var db = _redis.GetDatabase();
+            await _cacheService.SetStringAsync(
                 $"{VerificationPrefix}{user.Email}",
                 JsonSerializer.Serialize(verificationData),
                 TimeSpan.FromMinutes(15));
@@ -373,8 +382,8 @@ namespace Table_Chair_Application.Services
 
         private async Task<RefreshToken> ValidateRefreshToken(string refreshToken)
         {
-            var db = _redis.GetDatabase();
-            if (await db.KeyExistsAsync($"{TokenBlacklistPrefix}{refreshToken}"))
+           // var db = _redis.GetDatabase();
+            if (await _cacheService.KeyExistsAsync($"{TokenBlacklistPrefix}{refreshToken}"))
             {
                 throw new AppException("This token has been revoked");
             }
@@ -403,11 +412,11 @@ namespace Table_Chair_Application.Services
 
         private async Task AddToTokenBlacklist(string token, DateTime expiresAt)
         {
-            var db = _redis.GetDatabase();
+           //  var db = _redis.GetDatabase();
             var ttl = expiresAt - DateTime.UtcNow;
             if (ttl > TimeSpan.Zero)
             {
-                await db.StringSetAsync(
+                await _cacheService.SetStringAsync(
                     $"{TokenBlacklistPrefix}{token}",
                     "revoked",
                     ttl);
@@ -452,13 +461,13 @@ namespace Table_Chair_Application.Services
 
         private async Task<bool> CanSendVerificationEmail(string email)
         {
-            var db = _redis.GetDatabase();
+           // var db = _redis.GetDatabase();
             var key = $"{RateLimitPrefix}{email}";
-            var current = await db.StringIncrementAsync(key);
+            var current = await _cacheService.IncrementAsync(key);
 
             if (current == 1)
             {
-                await db.KeyExpireAsync(key, TimeSpan.FromHours(1));
+                await _cacheService.KeyExpireAsync(key, TimeSpan.FromHours(1));
             }
 
             return current <= 5; // Max 5 attempts per hour
