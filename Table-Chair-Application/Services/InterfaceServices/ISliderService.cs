@@ -13,7 +13,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<IEnumerable<SliderDto>> GetSliderListAsync();
         Task<SliderDto> GetSliderByIdAsync(int id);
         Task AddSliderAsync(CreateSliderDto sliderDto);
-        Task UpdateSliderAsync(SliderDto sliderDto);
+        Task UpdateSliderAsync(SliderUpdateDto sliderDto);
         Task DeleteSliderAsync(int id);
     }
 }

@@ -1,115 +1,95 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using Swashbuckle.AspNetCore.Filters;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.CreateDtos;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
-using Table_Chair_Application.Exceptions; // NotFoundException uchun
 
-namespace Table_Chair.Controllers
+namespace Table_Chair.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
+public class NewsletterSubscriptionController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class NewsletterSubscriptionController : ControllerBase
+    private readonly INewsletterSubscriptionService _service;
+
+    public NewsletterSubscriptionController(INewsletterSubscriptionService service)
     {
-        private readonly INewsletterSubscriptionService _newsletterSubscriptionService;
+        _service = service;
+    }
 
-        public NewsletterSubscriptionController(INewsletterSubscriptionService newsletterSubscriptionService)
-        {
-            _newsletterSubscriptionService = newsletterSubscriptionService;
-        }
+    [HttpPost("create")]
+    [AllowAnonymous]
+    [SwaggerOperation(Summary = "Yangiliklarga obuna bo‘lish")]
+    [ProducesResponseType(typeof(ApiResponse<string>), 201)]
+    public async Task<IActionResult> Add([FromBody] NewsletterSubscriptionCreateDto dto)
+    {
+        await _service.AddNewsletterSubscription(dto);
+        return StatusCode(201, ApiResponse<string>.SuccessResponse("Obuna yaratildi."));
+    }
 
-        // POST: api/NewsletterSubscription
-        // POST: https://localhost:7179/api/NewsletterSubscription/create
-        [HttpPost("create")]
-        public async Task<IActionResult> Add([FromBody] NewsletterSubscriptionCreateDto newsletterSubscriptionCreateDto)
-        {
-            await _newsletterSubscriptionService.AddNewsletterSubscription(newsletterSubscriptionCreateDto);
-            return StatusCode(201); // Created
-        }
+    [HttpGet("getall")]
+    [Authorize(Roles = "Admin")]
+    [SwaggerOperation(Summary = "Barcha obunalarni olish (admin)")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<NewsletterSubscriptionDto>>), 200)]
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _service.GetAllAsync();
+        return Ok(ApiResponse<IEnumerable<NewsletterSubscriptionDto>>.SuccessResponse(result));
+    }
 
-        // GET: https://localhost:7179/api/NewsletterSubscription/getall
-        [HttpGet("getall")]
-        public async Task<ActionResult<IEnumerable<NewsletterSubscriptionDto>>> GetAll()
-        {
-            var subscriptions = await _newsletterSubscriptionService.GetAllAsync();
-            return Ok(subscriptions);
-        }
+    [HttpGet("getbyId/{id}")]
+    [Authorize(Roles = "Admin")]
+    [SwaggerOperation(Summary = "Obunani ID bo‘yicha olish")]
+    [ProducesResponseType(typeof(ApiResponse<NewsletterSubscriptionDto>), 200)]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var result = await _service.GetByIdAsync(id);
+        return Ok(ApiResponse<NewsletterSubscriptionDto>.SuccessResponse(result));
+    }
 
-        // GET: https://localhost:7179/api/NewsletterSubscription/getbyId/id
-        [HttpGet("getbyId/{id}")]
-        public async Task<ActionResult<NewsletterSubscriptionDto>> GetById(int id)
-        {
-            try
-            {
-                var subscription = await _newsletterSubscriptionService.GetByIdAsync(id);
-                return Ok(subscription);
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
+    [HttpPut("update")]
+    [Authorize(Roles = "Admin")]
+    [SwaggerOperation(Summary = "Obunani yangilash")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> Update([FromBody] NewsletterSubscriptionDto dto)
+    {
+        await _service.UpdateAsync(dto);
+        return NoContent();
+    }
 
-        // PUT: https://localhost:7179/api/NewsletterSubscription/update
-        [HttpPut("update")]
-        public async Task<IActionResult> Update([FromBody] NewsletterSubscriptionDto newsletterSubscriptionDto)
-        {
-            try
-            {
-                await _newsletterSubscriptionService.UpdateAsync(newsletterSubscriptionDto);
-                return NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
+    [HttpDelete("delete/{id}")]
+    [Authorize(Roles = "Admin")]
+    [SwaggerOperation(Summary = "Obunani o‘chirish (hard delete)")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> HardDelete(int id)
+    {
+        await _service.DeleteNewsletterSubscriptionAsync(id);
+        return NoContent();
+    }
 
-        // DELETE: https://localhost:7179/api/NewsletterSubscription/delete/id
-        [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> HardDelete(int id)
-        {
-            try
-            {
-                await _newsletterSubscriptionService.DeleteNewsletterSubscriptionAsync(id);
-                return NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
+    [HttpPatch("soft-delete/{id}")]
+    [Authorize(Roles = "Admin")]
+    [SwaggerOperation(Summary = "Obunani soft delete qilish")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> SoftDelete(int id)
+    {
+        await _service.SoftDeleteNewsletterSubscriptionAsync(id);
+        return NoContent();
+    }
 
-        // PATCH: https://localhost:7179/api/NewsletterSubscription/soft-delete/id
-        [HttpPatch("soft-delete/{id}")]
-        public async Task<IActionResult> SoftDelete(int id)
-        {
-            try
-            {
-                await _newsletterSubscriptionService.SoftDeleteNewsletterSubscriptionAsync(id);
-                return NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        // PATCH: https://localhost:7179/api/NewsletterSubscription/restore/id
-        [HttpPatch("restore/{id}")]
-        public async Task<IActionResult> Restore(int id)
-        {
-            try
-            {
-                await _newsletterSubscriptionService.RestoreNewsletterSubscriptionAsync(id);
-                return NoContent();
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
+    [HttpPatch("restore/{id}")]
+    [Authorize(Roles = "Admin")]
+    [SwaggerOperation(Summary = "Obunani tiklash (restore)")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _service.RestoreNewsletterSubscriptionAsync(id);
+        return NoContent();
     }
 }
+
 

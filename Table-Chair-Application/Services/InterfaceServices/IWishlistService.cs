@@ -15,7 +15,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task AddAsync(int userId,WishlistItemCreateDto item);
         Task RemoveAsync(int userId, int productId);
         Task<bool> ExistsAsync(int userId, int productId);
-        Task<IEnumerable<WishlistItemDto>> GetWishlistProductsAsync(int userId);
+        Task<List<WishlistItemDto>> GetWishlistProductsAsync(int userId);
         Task<WishlistToggleResultDto> ToggleWishlistAsync(int userId, int productId);
     }
 }

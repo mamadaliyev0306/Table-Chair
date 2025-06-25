@@ -16,5 +16,8 @@ namespace Table_Chair_Entity.Models
          public string? ImageUrl { get; set; }
         [MaxLength(150)] public string? Title { get; set; } = string.Empty;
         [MaxLength(300)] public string? Description { get; set; } = string.Empty;
+        public string? RedirectUrl { get; set; } // slayder bosilganda o‘tadigan link
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

@@ -19,5 +19,6 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<bool> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
         Task<bool> VerifyEmailAsync(string email, string code);
         Task<bool> ResendVerificationEmailAsync(string email);
+        Task LogoutAsync(string refreshToken);
     }
 }

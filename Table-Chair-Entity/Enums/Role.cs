@@ -9,6 +9,7 @@ namespace Table_Chair_Entity.Enums
     public enum Role
     {
         Customer,
-        Admin
+        Admin,
+        Seller
     }
 }

@@ -13,7 +13,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<IEnumerable<TestimonialDto>> GetAllAsync();
         Task<TestimonialDto> GetByIdAsync(int id);
         Task CreateAsync(CreateTestimonialDto dto);
-        Task UpdateAsync(int id, CreateTestimonialDto dto);
+        Task UpdateAsync(UpdateTestimonialDto);
         Task DeleteAsync(int id);
         Task RestoreAsync(int id);
         Task SoftDeleteAsync(int id);

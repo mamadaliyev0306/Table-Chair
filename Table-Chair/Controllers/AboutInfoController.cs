@@ -1,55 +1,69 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Filters;
 using Table_Chair_Application.Dtos.AboutInfoDtos;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 
-namespace Table_Chair.Controllers
-{
-    [Route("api/[controller]")]
-    [ApiController]
-    public class AboutInfoController : ControllerBase
-    {
-        private readonly IAboutInfoService _aboutInfoService;
+namespace Table_Chair.Controllers;
 
-        public AboutInfoController(IAboutInfoService aboutInfoService)
-        {
-            _aboutInfoService = aboutInfoService;
-        }
-        //https://localhost:7179/api/AboutInfo/getall
-        [HttpGet("getall")]
-        public async Task<IActionResult> GetAll()
-        {
-            var result = await _aboutInfoService.GetAllAsync();
-            return Ok(result);
-        }
-        //https://localhost:7179/api/AboutInfo/GetById/Id
-        [HttpGet("GetById/{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var result = await _aboutInfoService.GetByIdAsync(id);
-            return Ok(result);
-        }
-        //https://localhost:7179/api/AboutInfo/Create
-        [HttpPost("Create")]
-        public async Task<IActionResult> Create([FromBody] AboutInfoCreateDto dto)
-        {
-            await _aboutInfoService.CreateAsync(dto);
-            return Ok(new { message = "AboutInfo successfully created!" });
-        }
-        //https://localhost:7179/api/AboutInfo/Update/Id
-        [HttpPut("Update/{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] AboutInfoCreateDto dto)
-        {
-            await _aboutInfoService.UpdateAsync(id, dto);
-            return Ok(new { message = "AboutInfo successfully updated!" });
-        }
-        //https://localhost:7179/api/AboutInfo/delete/Id
-        [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            await _aboutInfoService.DeleteAsync(id);
-            return Ok(new { message = "AboutInfo successfully deleted!" });
-        }
+[Route("api/[controller]")]
+[ApiController]
+public class AboutInfoController : ControllerBase
+{
+    private readonly IAboutInfoService _aboutInfoService;
+
+    public AboutInfoController(IAboutInfoService aboutInfoService)
+    {
+        _aboutInfoService = aboutInfoService;
+    }
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<List<AboutInfoDto>>), 200)]
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _aboutInfoService.GetAllAsync();
+        return Ok(ApiResponse<List<AboutInfoDto>>.SuccessResponse(result.ToList())); 
+    }
+
+    // GET: api/AboutInfo/{id}
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ApiResponse<AboutInfoDto>), 200)]
+    [ProducesResponseType(typeof(ErrorResponse), 404)]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var result = await _aboutInfoService.GetByIdAsync(id);
+        return Ok(ApiResponse<AboutInfoDto>.SuccessResponse(result));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+    [ProducesResponseType(typeof(ValidationErrorResponse), 400)]
+    [SwaggerRequestExample(typeof(AboutInfoCreateDto), typeof(AboutInfoCreateDtoExample))]
+    public async Task<IActionResult> Create([FromBody] AboutInfoCreateDto dto)
+    {
+        await _aboutInfoService.CreateAsync(dto);
+        return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "AboutInfo successfully created!"));
+    }
+
+    [HttpPut("{id:int}")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+    [ProducesResponseType(typeof(ValidationErrorResponse), 400)]
+    public async Task<IActionResult> Update(int id, [FromBody] AboutInfoCreateDto dto)
+    {
+        await _aboutInfoService.UpdateAsync(id, dto);
+        return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "AboutInfo successfully updated!"));
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await _aboutInfoService.DeleteAsync(id);
+        return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "AboutInfo successfully deleted!"));
     }
 }
+
 

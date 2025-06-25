@@ -1,100 +1,90 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos.ShippingAddressDtos;
-using Table_Chair_Application.Services;
 using Table_Chair_Application.Services.InterfaceServices;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Table_Chair.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class ShippingAddressController : ControllerBase
     {
         private readonly IShippingAddressService _shippingAddressService;
+        private readonly ILogger<ShippingAddressController> _logger;
 
-        public ShippingAddressController(IShippingAddressService shippingAddressService)
+        public ShippingAddressController(
+            IShippingAddressService shippingAddressService,
+            ILogger<ShippingAddressController> logger)
         {
             _shippingAddressService = shippingAddressService;
+            _logger = logger;
         }
 
-        // POST: https://localhost:7179/api/shippingaddress/create
+        /// <summary>
+        /// Yangi yetkazib berish manzili yaratish
+        /// </summary>
+        /// <param name="dto">Manzil ma'lumotlari</param>
+        /// <returns>Natija</returns>
         [HttpPost("create")]
+        [AllowAnonymous] // foydalanuvchi login qilmagan bo‘lishi mumkin
         public async Task<IActionResult> Create([FromBody] ShippingAddressCreateDto dto)
         {
-            if (dto == null)
-            {
-                return BadRequest("Invalid data.");
-            }
+            _logger.LogInformation("Yangi manzil qo‘shilmoqda");
 
-            try
-            {
-                await _shippingAddressService.CreateAsync(dto);
-                return Ok();
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            if (dto == null)
+                return BadRequest("Invalid data.");
+
+            await _shippingAddressService.CreateAsync(dto);
+            return Ok(new { message = "Manzil muvaffaqiyatli qo‘shildi" });
         }
 
-        // DELETE: https://localhost:7179/api/shippingaddress/delete
+        /// <summary>
+        /// Manzilni ID bo‘yicha o‘chirish
+        /// </summary>
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            try
-            {
-                var result = await _shippingAddressService.DeleteAsync(id);
-                if (!result)
-                {
-                    return NotFound($"Shipping address with ID {id} not found.");
-                }
-                return NoContent(); // Successfully deleted
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            _logger.LogInformation("Manzil o‘chirish so‘rovi. ID: {Id}", id);
+
+            var result = await _shippingAddressService.DeleteAsync(id);
+            if (!result)
+                return NotFound(new { message = $"ID {id} bilan manzil topilmadi" });
+
+            return NoContent();
         }
 
-        // GET: https://localhost:7179/api/shippingaddress/getbyId/id
+        /// <summary>
+        /// ID bo‘yicha manzilni olish
+        /// </summary>
         [HttpGet("getbyId/{id}")]
+        [AllowAnonymous] // ochiq
         public async Task<IActionResult> GetById(int id)
         {
-            try
-            {
-                var result = await _shippingAddressService.GetByIdAsync(id);
-                return Ok(result);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            
+            _logger.LogInformation("ID: {Id} bilan manzilni olish", id);
+
+            var result = await _shippingAddressService.GetByIdAsync(id);
+            return Ok(result);
         }
 
-        // PUT:https://localhost:7179/api/shippingaddress/update/id
+        /// <summary>
+        /// Manzilni yangilash
+        /// </summary>
         [HttpPut("update/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] ShippingAddressUpdateDto dto)
         {
-            if (dto == null)
-            {
-                return BadRequest("Invalid data.");
-            }
+            _logger.LogInformation("ID: {Id} bilan manzil yangilash", id);
 
-            try
-            {
-                var result = await _shippingAddressService.UpdateAsync(id, dto);
-                if (!result)
-                {
-                    return NotFound($"Shipping address with ID {id} not found.");
-                }
-                return NoContent(); // Successfully updated
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            if (dto == null)
+                return BadRequest("Invalid data.");
+
+            var result = await _shippingAddressService.UpdateAsync(id, dto);
+            if (!result)
+                return NotFound(new { message = $"ID {id} bilan manzil topilmadi" });
+
+            return Ok(new { message = "Manzil muvaffaqiyatli yangilandi" });
         }
     }
 }
-

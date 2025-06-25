@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Filters;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.CreateDtos;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 
 namespace Table_Chair.Controllers
@@ -18,123 +21,84 @@ namespace Table_Chair.Controllers
             _testimonialService = testimonialService;
         }
 
-        // GET:  https://localhost:7179/api/testimonial/getall
+        /// <summary>
+        /// Barcha testimonial (fikrlar) ro‘yxatini olish
+        /// </summary>
         [HttpGet("getall")]
-        public async Task<ActionResult<IEnumerable<TestimonialDto>>> GetAll()
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<IEnumerable<TestimonialDto>>>> GetAll()
         {
-            try
-            {
-                var result = await _testimonialService.GetAllAsync();
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            var result = await _testimonialService.GetAllAsync();
+            return Ok(ApiResponse<IEnumerable<TestimonialDto>>.SuccessResponse(result));
         }
 
-        // GET:  https://localhost:7179/api/testimonial/getbyId/id
+        /// <summary>
+        /// ID bo‘yicha testimonial olish
+        /// </summary>
         [HttpGet("getbyId/{id}")]
-        public async Task<ActionResult<TestimonialDto>> GetById(int id)
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<TestimonialDto>>> GetById(int id)
         {
-            try
-            {
-                var result = await _testimonialService.GetByIdAsync(id);
-                if (result == null)
-                {
-                    return NotFound($"Testimonial with ID {id} not found.");
-                }
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            var result = await _testimonialService.GetByIdAsync(id);
+            return Ok(ApiResponse<TestimonialDto>.SuccessResponse(result));
         }
 
-        // POST:  https://localhost:7179/api/testimonial/create
+        /// <summary>
+        /// Yangi testimonial qo‘shish
+        /// </summary>
         [HttpPost("create")]
-        public async Task<ActionResult> Create([FromBody] CreateTestimonialDto dto)
+        [Authorize(Roles = "Admin,Manager")]
+        [SwaggerRequestExample(typeof(CreateTestimonialDto), typeof(CreateTestimonialDtoExample))]
+        public async Task<ActionResult<ApiResponse<string>>> Create([FromBody] CreateTestimonialDto dto)
         {
-            try
-            {
-                if (dto == null)
-                {
-                    return BadRequest("Testimonial data is null.");
-                }
-
-                await _testimonialService.CreateAsync(dto);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            await _testimonialService.CreateAsync(dto);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Fikr muvaffaqiyatli qo‘shildi."));
         }
 
-        // PUT:  https://localhost:7179/api/testimonial/update/id
+        /// <summary>
+        /// Testimonialni yangilash
+        /// </summary>
         [HttpPut("update/{id}")]
-        public async Task<ActionResult> Update(int id, [FromBody] CreateTestimonialDto dto)
+        [Authorize(Roles = "Admin,Manager")]
+        [SwaggerRequestExample(typeof(UpdateTestimonialDto), typeof(UpdateTestimonialDtoExample))]
+        public async Task<ActionResult<ApiResponse<string>>> Update([FromBody] UpdateTestimonialDto dto)
         {
-            try
-            {
-                if (dto == null)
-                {
-                    return BadRequest("Testimonial data is null.");
-                }
 
-                await _testimonialService.UpdateAsync(id, dto);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            await _testimonialService.UpdateAsync(dto);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Fikr muvaffaqiyatli yangilandi."));
         }
 
-        // DELETE: https://localhost:7179/api/testimonial/delete/id
+        /// <summary>
+        /// Testimonialni o‘chirish (qattiq delete)
+        /// </summary>
         [HttpDelete("delete/{id}")]
-        public async Task<ActionResult> Delete(int id)
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ApiResponse<string>>> Delete(int id)
         {
-            try
-            {
-                await _testimonialService.DeleteAsync(id);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            await _testimonialService.DeleteAsync(id);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Fikr muvaffaqiyatli o‘chirildi."));
         }
 
-        //DELETE : https://localhost:7179/api/testimonial/softdelete/id
+        /// <summary>
+        /// Testimonialni soft delete qilish
+        /// </summary>
         [HttpPatch("softdelete/{id}")]
-        public async Task<ActionResult> SoftDelete(int id)
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<ActionResult<ApiResponse<string>>> SoftDelete(int id)
         {
-            try
-            {
-                await _testimonialService.SoftDeleteAsync(id);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            await _testimonialService.SoftDeleteAsync(id);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Fikr soft delete qilindi."));
         }
 
-        // PATCH:  https://localhost:7179/api/testimonial/restore/id
+        /// <summary>
+        /// Soft delete qilingan testimonialni tiklash
+        /// </summary>
         [HttpPatch("restore/{id}")]
-        public async Task<ActionResult> Restore(int id)
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<ActionResult<ApiResponse<string>>> Restore(int id)
         {
-            try
-            {
-                await _testimonialService.RestoreAsync(id);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            await _testimonialService.RestoreAsync(id);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Fikr muvaffaqiyatli tiklandi."));
         }
     }
 }

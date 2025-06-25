@@ -1,18 +1,20 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Swashbuckle.AspNetCore.Filters;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.AdditionDtos;
 using Table_Chair_Application.Dtos.EmailDtos;
 using Table_Chair_Application.Dtos.UserDtos;
 using Table_Chair_Application.Services.InterfaceServices;
-using Table_Chair_Entity.Models;
+using Microsoft.Extensions.Logging;
+using Table_Chair.Examples.UserExamples;
+using Table_Chair_Application.Responses;
+using Table_Chair.Examples.PasswordExamples;
 
 namespace Table_Chair.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-   // [Authorize] // Barcha endpointlar uchun token talab qilinadi
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -24,129 +26,102 @@ namespace Table_Chair.Controllers
             _logger = logger;
         }
 
-        // faqat Register va Login AllowAnonymous qoldiramiz
-        // POST:https://localhost:7179/api/Auth/register
         [HttpPost("register")]
         [AllowAnonymous]
-        [ProducesResponseType(typeof(UserResponseDto), 200)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> RegisterUser([FromBody] UserRegisterDto userRegisterDto)
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        [SwaggerRequestExample(typeof(UserRegisterDto), typeof(UserRegisterDtoExample))]
+        public async Task<IActionResult> RegisterUser([FromBody] UserRegisterDto dto)
         {
-            try
-            {
-                var result = await _authService.RegisterAsync(userRegisterDto);
-                return Ok(new
-                {
-                    Message = "Tasdiqlash kodi emailga yuborildi"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Register Error: " + ex.Message);
-                return BadRequest(new {ex.Message });
-            }
+            var result = await _authService.RegisterAsync(dto);
+            return Ok(ApiResponse<string>.SuccessResponse("Tasdiqlash kodi emailga yuborildi"));
         }
 
         [HttpPost("verify")]
-        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyDto)
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
         {
-            var result = await _authService.VerifyEmailAsync(verifyDto.Email, verifyDto.Code);
-            return result ? Ok(new { Success = true })
-                         : BadRequest(new { Success = false, Message = "Noto'g'ri kod" });
+            var result = await _authService.VerifyEmailAsync(dto.Email, dto.Code);
+            return result
+                ? Ok(ApiResponse<string>.SuccessResponse("Email muvaffaqiyatli tasdiqlandi"))
+                : BadRequest(ApiResponse<string>.Failure("Noto'g'ri yoki eskirgan kod"));
         }
 
         [HttpPost("resend")]
-        public async Task<IActionResult> ResendVerificationCode([FromBody] SendEmailVerificationRequest resendDto)
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        public async Task<IActionResult> ResendVerificationCode([FromBody] SendEmailVerificationRequest dto)
         {
-            var result = await _authService.ResendVerificationEmailAsync(resendDto.Email);
-            return result ? Ok(new { Success = true })
-                         : BadRequest(new { Success = false, Message = "Xatolik yuz berdi" });
+            var result = await _authService.ResendVerificationEmailAsync(dto.Email);
+            return result
+                ? Ok(ApiResponse<string>.SuccessResponse("Yangi kod yuborildi"))
+                : BadRequest(ApiResponse<string>.Failure("Xatolik yuz berdi"));
         }
 
-        // POST:https://localhost:7179/api/Auth/login
         [HttpPost("login")]
         [AllowAnonymous]
-        [ProducesResponseType(typeof(AuthResponseDto), 200)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> LoginAsync([FromBody] UserLoginDto userLoginDto)
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        [SwaggerRequestExample(typeof(UserLoginDto), typeof(UserLoginDtoExample))]
+        [SwaggerResponseExample(200, typeof(UserLoginDtoExample))]
+        public async Task<IActionResult> LoginAsync([FromBody] UserLoginDto dto)
         {
-            try
-            {
-                var result = await _authService.LoginAsync(userLoginDto);
-                _logger.LogInformation($"{result}");
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Login Error: " + ex.Message);
-                return BadRequest(new { ex.Message });
-            }
+            var result = await _authService.LoginAsync(dto);
+            return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(result));
         }
-        // POST:https://localhost:7179/api/Auth/refresh-token
+
         [HttpPost("refresh-token")]
         [AllowAnonymous]
-        [ProducesResponseType(typeof(AuthResponseDto), 200)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> RefreshTokenAsync([FromBody] string refreshToken)
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        public async Task<IActionResult> RefreshTokenAsync([FromBody] RefreshTokenRequest dto)
         {
-            try
-            {
-                var result = await _authService.RefreshTokenAsync(refreshToken);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Refresh Token Error: " + ex.Message);
-                return BadRequest(ex.Message);
-            }
+            var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
+            return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(result));
         }
-        // POST:https://localhost:7179/api/Auth/revoke-token
+
         [HttpPost("revoke-token")]
-        public async Task<IActionResult> RevokeRefreshToken([FromBody] string refreshToken)
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        public async Task<IActionResult> RevokeRefreshToken([FromBody] RefreshTokenRequest dto)
         {
-            try
-            {
-                var result = await _authService.RevokeRefreshTokenAsync(refreshToken);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Revoke Token Error: " + ex.Message);
-                return BadRequest(ex.Message);
-            }
+            var result = await _authService.RevokeRefreshTokenAsync(dto.RefreshToken);
+            return Ok(ApiResponse<string>.SuccessResponse("Token bekor qilindi"));
         }
-        // POST:https://localhost:7179/api/Auth/forgot-password
+
+        [HttpPost("logout")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest dto)
+        {
+            await _authService.LogoutAsync(dto.RefreshToken);
+            return Ok(ApiResponse<string>.SuccessResponse("Tizimdan chiqildi"));
+        }
+
         [HttpPost("forgot-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ForgotPassword([FromBody] string email)
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest dto)
         {
-            try
-            {
-                var result = await _authService.ForgotPasswordAsync(email);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Forgot Password Error: " + ex.Message);
-                return BadRequest(ex.Message);
-            }
+            var result = await _authService.ForgotPasswordAsync(dto.Email);
+            return Ok(ApiResponse<string>.SuccessResponse("Reset link yuborildi"));
         }
-        // POST:https://localhost:7179/api/Auth/reset-password
+
         [HttpPost("reset-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetDto)
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 400)]
+        [SwaggerRequestExample(typeof(ResetPasswordDtoExample), typeof(ResetPasswordDtoExample))]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
-            try
-            {
-                var result = await _authService.ResetPasswordAsync(resetDto);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Reset Password Error: " + ex.Message);
-                return BadRequest(ex.Message);
-            }
+            var result = await _authService.ResetPasswordAsync(dto);
+            return Ok(ApiResponse<string>.SuccessResponse("Parol yangilandi"));
         }
     }
 }
+
 

@@ -110,20 +110,20 @@ namespace Table_Chair_Application.Services
             }
         }
 
-        public async Task UpdateAsync(int id, CreateTestimonialDto dto)
+        public async Task UpdateAsync(UpdateTestimonialDto dto)
         {
             try
             {
                 if (dto == null)
                 {
-                    _logger.LogWarning("CreateTestimonialDto is null for ID {TestimonialId}.", id);
+                    _logger.LogWarning("CreateTestimonialDto is null for ID {TestimonialId}.",dto);
                     throw new ArgumentNullException(nameof(dto));
                 }
 
-                var result = await _unitOfWork.Testimons.GetByIdAsync(id);
+                var result = await _unitOfWork.Testimons.GetByIdAsync(dto.Id);
                 if (result == null)
                 {
-                    _logger.LogWarning("Testimonial with ID {TestimonialId} not found for update.", id);
+                    _logger.LogWarning("Testimonial with ID {TestimonialId} not found for update.", dto.Id);
                     return;
                 }
 
@@ -131,11 +131,11 @@ namespace Table_Chair_Application.Services
                 _unitOfWork.Testimons.Update(entity);
                 await _unitOfWork.CompleteAsync();
 
-                _logger.LogInformation("Testimonial with ID {TestimonialId} updated successfully.", id);
+                _logger.LogInformation("Testimonial with ID {TestimonialId} updated successfully.", dto.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while updating testimonial with ID {TestimonialId}.", id);
+                _logger.LogError(ex, "Error occurred while updating testimonial with ID {TestimonialId}.", dto.Id);
                 throw;
             }
         }

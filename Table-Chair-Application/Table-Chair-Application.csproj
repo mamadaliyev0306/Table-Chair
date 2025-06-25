@@ -22,4 +22,8 @@
     <ProjectReference Include="..\Table-Chair-Entity\Table-Chair-Entity.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Validations\" />
+  </ItemGroup>
+
 </Project>

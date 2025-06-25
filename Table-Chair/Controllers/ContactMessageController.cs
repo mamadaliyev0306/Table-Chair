@@ -1,14 +1,18 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using Swashbuckle.AspNetCore.Filters;
+using Table_Chair.Examples;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.CreateDtos;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 
 namespace Table_Chair.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-  //  [Authorize] // 🔒 faqat token bilan kirish mumkin
+    [Produces("application/json")]
     public class ContactMessageController : ControllerBase
     {
         private readonly IContactMessageService _contactMessageService;
@@ -20,35 +24,45 @@ namespace Table_Chair.Controllers
             _logger = logger;
         }
 
-        // GET: api/ContactMessage
-        // GET: https://localhost:7179/api/contactmessage/getall
+        // ✅ GET: api/contactmessage/getall
         [HttpGet("getall")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(Summary = "Barcha kontakt xabarlarini olish (faqat Admin)")]
+        [ProducesResponseType(typeof(ApiResponse<List<ContactMessageDto>>), 200)]
+        [SwaggerResponseExample(200, typeof(ContactMessageListExample))]
         public async Task<IActionResult> GetAll()
         {
             var result = await _contactMessageService.GetAllAsync();
-            return Ok(result);
+            return Ok(ApiResponse<List<ContactMessageDto>>.SuccessResponse(result));
         }
-        // GET: https://localhost:7179/api/contactmessage/getbyId/id
-        // GET: api/ContactMessage/5
-        [HttpGet("getbyId/{id}")]
+
+        [HttpGet("getbyid/{id}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(Summary = "Xabar ID bo‘yicha olish (faqat Admin)")]
+        [ProducesResponseType(typeof(ApiResponse<ContactMessageDto>), 200)]
+        [ProducesResponseType(typeof(ErrorResponse), 404)]
+        [SwaggerResponseExample(200, typeof(ContactMessageExample))]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _contactMessageService.GetByIdAsync(id);
-            return Ok(result);
+            return Ok(ApiResponse<ContactMessageDto?>.SuccessResponse(result));
         }
-        // POST: https://localhost:7179/api/contactmessage/create
-        // POST: api/ContactMessage
         [HttpPost("create")]
-        [AllowAnonymous] // ❗ Manashu joyda AllowAnonymous qo'ydim, Contact yozishi uchun login bo'lishi shart emas
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "Yangi contact xabari jo‘natish (login talab qilinmaydi)")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 201)]
+        [SwaggerResponseExample(201, typeof(SuccessMessageExample))]
         public async Task<IActionResult> Create([FromBody] ContactMessageCreateDto dto)
         {
             await _contactMessageService.CreateAsync(dto);
-            _logger.LogInformation("New contact message created.");
-            return StatusCode(201); // Created
+            _logger.LogInformation("Yangi kontakt xabari yaratildi.");
+            return StatusCode(201, ApiResponse<string>.SuccessResponse("Xabaringiz qabul qilindi"));
         }
-        // DELETE: https://localhost:7179/api/contactmessage/delete/id
-        // DELETE: api/ContactMessage/5
+
         [HttpDelete("delete/{id}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(Summary = "Contact xabarini o‘chirish (faqat Admin)")]
+        [ProducesResponseType(204)]
         public async Task<IActionResult> Delete(int id)
         {
             await _contactMessageService.DeleteAsync(id);

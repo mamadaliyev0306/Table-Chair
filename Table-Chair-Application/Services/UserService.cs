@@ -63,12 +63,12 @@ namespace Table_Chair_Application.Services
             return await _unitOfWork.Users.UsernameExistsAsync(username);
         }
 
-        public async Task<UserResponseDto> GetUserProfileAsync(int userId)
+        public async Task<UserProfileDto> GetUserProfileAsync(int userId)
         {
             var result = await _unitOfWork.Users.GetUserProfileAsync(userId);
             return result == null
                 ? throw new NotFoundException("Not Found")
-                : _mapper.Map<UserResponseDto>(result);
+                : _mapper.Map<UserProfileDto>(result);
         }
 
         public async Task<bool> UpdateProfileAsync(int userId, UserUpdateDto updateDto)

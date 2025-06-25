@@ -18,7 +18,7 @@ namespace Table_Chair_Application.Dtos.UserDtos
             public string? AvatarUrl { get; set; }
             public string? Bio { get; set; }
             public DateTime CreatedAt { get; set; }
-           public DateTime? UpdatedAt { get; set; }
-           public Role Role { get; set; } 
+            public DateTime? UpdatedAt { get; set; }
+            public Role Role { get; set; } 
     }
 }

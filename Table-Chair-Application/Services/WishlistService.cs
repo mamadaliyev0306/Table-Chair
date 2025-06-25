@@ -75,21 +75,21 @@ namespace Table_Chair_Application.Services
             }
         }
 
-        public async Task<IEnumerable<WishlistItemDto>> GetWishlistProductsAsync(int userId)
+        public async Task<List<WishlistItemDto>> GetWishlistProductsAsync(int userId)
         {
             try
             {
                 var result = await _unitOfWork.Wishlist.GetWishlistProductsAsync(userId);
                 if (result == null)
                 {
-                    return Enumerable.Empty<WishlistItemDto>();
+                    return (List<WishlistItemDto>)Enumerable.Empty<WishlistItemDto>();
                 }
-                return _mapper.Map< IEnumerable<WishlistItemDto>>(result);
+                return _mapper.Map< List<WishlistItemDto>>(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return Enumerable.Empty<WishlistItemDto>();
+                return (List<WishlistItemDto>)Enumerable.Empty<WishlistItemDto>();
             }
         }
 

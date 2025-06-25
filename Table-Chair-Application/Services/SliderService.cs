@@ -118,7 +118,7 @@ namespace Table_Chair_Application.Services
         }
 
         // Update an existing Slider
-        public async Task UpdateSliderAsync(SliderDto sliderDto)
+        public async Task UpdateSliderAsync(SliderUpdateDto sliderDto)
         {
             try
             {

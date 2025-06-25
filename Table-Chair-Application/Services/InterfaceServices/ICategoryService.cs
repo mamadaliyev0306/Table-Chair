@@ -14,7 +14,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<IEnumerable<CategoryDto>> GetAllAsync();
         Task<CategoryDto?> GetByIdAsync(int id);
         Task<CategoryDto> AddAsync(CategoryCreateDto category);
-        Task<bool> UpdateAsync(CategoryDto category);
+        Task<bool> UpdateAsync(CategoryUpdateDto category);
         Task<bool> DeleteAsync(int id);
 
         Task<IEnumerable<CategoryWithProductsDto>> GetWithProductsAsync();

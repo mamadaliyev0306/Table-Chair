@@ -1,11 +1,9 @@
 ﻿namespace Table_Chair_Application.Exceptions
 {
     [Serializable]
-    internal class AppException : Exception
+    public class AppException : Exception
     {
-        public AppException()
-        {
-        }
+        public AppException() : base() { }
 
         public AppException(string? message) : base(message)
         {

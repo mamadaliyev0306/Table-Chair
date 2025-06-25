@@ -30,7 +30,6 @@ namespace Table_Chair_Application.Services
 
             var category = _mapper.Map<Category>(categoryDto);
             category.CreatedAt = DateTime.UtcNow;
-            category.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Categories.AddAsync(category);
             await _unitOfWork.CompleteAsync();
@@ -88,7 +87,7 @@ namespace Table_Chair_Application.Services
             return await _unitOfWork.Categories.HasProductsAsync(categoryId);
         }
 
-        public async Task<bool> UpdateAsync(CategoryDto categoryDto)
+        public async Task<bool> UpdateAsync(CategoryUpdateDto categoryDto)
         {
             if (categoryDto == null)
                 throw new ArgumentNullException(nameof(categoryDto));

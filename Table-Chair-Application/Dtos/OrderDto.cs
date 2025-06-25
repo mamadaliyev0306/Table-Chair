@@ -26,6 +26,4 @@ namespace Table_Chair_Application.Dtos
         public DateTime? CancelledAt { get; set; }
         public decimal TotalAmount { get; set; }
     }
-
-
 }

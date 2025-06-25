@@ -1,17 +1,21 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Swashbuckle.AspNetCore.Filters;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Table_Chair.Examples;
+using Table_Chair.Examples.BlogExample;
 using Table_Chair_Application.Dtos.BlogDtos;
-using Table_Chair_Application.Services.InterfaceServices;
 using Table_Chair_Application.Exceptions;
-using Microsoft.Extensions.Logging;
+using Table_Chair_Application.Responses;
+using Table_Chair_Application.Services.InterfaceServices;
 
 namespace Table_Chair.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Faqat ro‘yxatdan o‘tgan foydalanuvchilarga ruxsat
+    [Authorize]
     public class BlogController : ControllerBase
     {
         private readonly IBlogService _blogService;
@@ -23,99 +27,79 @@ namespace Table_Chair.Controllers
             _logger = logger;
         }
 
-        // ✅ GET: api/Blog - Barcha bloglarni olish
-        // GET:https://localhost:7179/api/blog/getall
         [HttpGet("getall")]
-        [AllowAnonymous] // Hamma kirishi mumkin
-        [ProducesResponseType(typeof(IEnumerable<BlogDto>), 200)]
-        public async Task<ActionResult<IEnumerable<BlogDto>>> GetAll()
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<BlogDto>>), 200)]
+        public async Task<IActionResult> GetAll()
         {
             var blogs = await _blogService.GetAllAsync();
-            return Ok(blogs);
+            return Ok(ApiResponse<IEnumerable<BlogDto>>.SuccessResponse(blogs));
         }
 
-        // ✅ GET: api/Blog/{id} - ID bo‘yicha blogni olish
-        // GET:https://localhost:7179/api/blog/getbyid/id
         [HttpGet("getbyid/{id}")]
-        [AllowAnonymous] // Hamma kirishi mumkin
-        [ProducesResponseType(typeof(BlogDto), 200)]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<BlogDto>), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<BlogDto>> GetById(int id)
+        public async Task<IActionResult> GetById(int id)
         {
             try
             {
                 var blog = await _blogService.GetByIdAsync(id);
-                return Ok(blog);
+                return Ok(ApiResponse<BlogDto>.SuccessResponse(blog));
             }
             catch (NotFoundException ex)
             {
-                _logger.LogWarning(ex, $"Blog with Id {id} not found.");
-                return NotFound(new { message = ex.Message });
+                _logger.LogWarning(ex, "Blog with Id {Id} not found", id);
+                return NotFound(ApiResponse<BlogDto>.Failure(ex.Message));
             }
         }
 
-        // ✅ POST: api/Blog - Yangi blog qo‘shish (faqat Adminlar)
-        // POST:https://localhost:7179/api/blog/create
         [HttpPost("create")]
-        [Authorize(Roles = "Admin")] // Faqat Admin qo‘sha oladi
-        [ProducesResponseType(201)]
+        [Authorize(Roles = "Admin")]
+        [SwaggerRequestExample(typeof(BlogCreateDto), typeof(BlogCreateDtoExample))]
+        [SwaggerResponseExample(201, typeof(SuccessResponseExample))]
+        [ProducesResponseType(typeof(ApiResponse<string>), 201)]
         [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        [ProducesResponseType(403)]
-        public async Task<ActionResult> Create([FromBody] BlogCreateDto blogCreateDto)
+        public async Task<IActionResult> Create([FromBody] BlogCreateDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            await _blogService.CreateAsync(blogCreateDto);
-            return StatusCode(201); // Created
+            await _blogService.CreateAsync(dto);
+            return StatusCode(201, ApiResponse<string>.SuccessResponse(string.Empty, "Blog muvaffaqiyatli yaratildi"));
         }
 
-        // ✅ PUT: api/Blog/{id} - Mavjud blogni yangilash (faqat Adminlar)
-        // PUT:https://localhost:7179/api/blog/update
         [HttpPut("update/{id}")]
-        [Authorize(Roles = "Admin")] // Faqat Admin yangilashi mumkin
-        [ProducesResponseType(204)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        [ProducesResponseType(403)]
+        [Authorize(Roles = "Admin")]
+        [SwaggerRequestExample(typeof(BlogUpdateDto), typeof(BlogUpdateDtoExample))]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> Update(int id, [FromBody] BlogUpdateDto blogUpdateDto)
+        public async Task<IActionResult> Update(int id, [FromBody] BlogUpdateDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             try
             {
-                await _blogService.UpdateAsync(id, blogUpdateDto);
-                return NoContent(); // 204
+                await _blogService.UpdateAsync(id, dto);
+                return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Blog muvaffaqiyatli yangilandi"));
             }
             catch (NotFoundException ex)
             {
-                _logger.LogWarning(ex, $"Blog with Id {id} not found.");
-                return NotFound(new { message = ex.Message });
+                _logger.LogWarning(ex, "Blog with Id {Id} not found", id);
+                return NotFound(ApiResponse<string>.Failure(ex.Message));
             }
         }
 
-        // ✅ DELETE: api/Blog/{id} - Blogni o‘chirish (faqat Adminlar)
-        // DELETE:https://localhost:7179/api/blog/delete/id
         [HttpDelete("delete/{id}")]
-        [Authorize(Roles = "Admin")] // Faqat Admin o‘chira oladi
-        [ProducesResponseType(204)]
-        [ProducesResponseType(401)]
-        [ProducesResponseType(403)]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
                 await _blogService.DeleteAsync(id);
-                return NoContent(); // 204
+                return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Blog muvaffaqiyatli o‘chirildi"));
             }
             catch (NotFoundException ex)
             {
-                _logger.LogWarning(ex, $"Blog with Id {id} not found.");
-                return NotFound(new { message = ex.Message });
+                _logger.LogWarning(ex, "Blog with Id {Id} not found", id);
+                return NotFound(ApiResponse<string>.Failure(ex.Message));
             }
         }
     }

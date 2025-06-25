@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.CreateDtos;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
+using Swashbuckle.AspNetCore.Filters;
 
 namespace Table_Chair.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class SliderController : ControllerBase
     {
         private readonly ISliderService _sliderService;
@@ -18,90 +22,63 @@ namespace Table_Chair.Controllers
             _sliderService = sliderService;
         }
 
-        // POST: https://localhost:7179/api/slider/create
+        /// <summary>
+        /// Yangi slider qo‘shish
+        /// </summary>
         [HttpPost("create")]
+        [Authorize(Roles = "Admin,Manager")]
+        [SwaggerRequestExample(typeof(CreateSliderDto), typeof(SliderCreateDtoExample))]
         public async Task<IActionResult> AddSliderAsync([FromBody] CreateSliderDto sliderDto)
         {
-            if (sliderDto == null)
-            {
-                return BadRequest("Slider data is required.");
-            }
-
-            try
-            {
-                await _sliderService.AddSliderAsync(sliderDto);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            await _sliderService.AddSliderAsync(sliderDto);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Slider muvaffaqiyatli qo‘shildi."));
         }
 
-        // GET: https://localhost:7179/api/slider/getbyId/id
+        /// <summary>
+        /// Sliderni ID bo‘yicha olish
+        /// </summary>
         [HttpGet("getbyId/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetSliderByIdAsync(int id)
         {
-            try
-            {
-                var slider = await _sliderService.GetSliderByIdAsync(id);
-                return Ok(slider);
-            }
-            catch (Exception ex)
-            {
-                return NotFound($"Slider with Id {id} not found. Error: {ex.Message}");
-            }
+            var slider = await _sliderService.GetSliderByIdAsync(id);
+            return Ok(ApiResponse<SliderDto>.SuccessResponse(slider));
         }
 
-        // GET: https://localhost:7179/api/slider/getall
+        /// <summary>
+        /// Barcha sliderlarni olish
+        /// </summary>
         [HttpGet("getall")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetSliderListAsync()
         {
-            try
-            {
-                var sliders = await _sliderService.GetSliderListAsync();
-                return Ok(sliders);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            var sliders = await _sliderService.GetSliderListAsync();
+            return Ok(ApiResponse<IEnumerable<SliderDto>>.SuccessResponse(sliders));
         }
 
-        // PUT: https://localhost:7179/api/slider/update/id
+        /// <summary>
+        /// Sliderni yangilash
+        /// </summary>
         [HttpPut("update/{id}")]
-        public async Task<IActionResult> UpdateSliderAsync(int id, [FromBody] SliderDto sliderDto)
+        [Authorize(Roles = "Admin,Manager")]
+        [SwaggerRequestExample(typeof(SliderUpdateDto), typeof(SliderUpdateDtoExample))]
+        public async Task<IActionResult> UpdateSliderAsync([FromBody] SliderUpdateDto sliderDto)
         {
-            if (sliderDto == null || sliderDto.Id != id)
-            {
-                return BadRequest("Invalid slider data.");
-            }
-
-            try
-            {
-                await _sliderService.UpdateSliderAsync(sliderDto);
-                return NoContent(); // Successfully updated
-            }
-            catch (Exception ex)
-            {
-                return NotFound($"Slider with Id {id} not found. Error: {ex.Message}");
-            }
+            await _sliderService.UpdateSliderAsync(sliderDto);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Slider muvaffaqiyatli yangilandi."));
         }
 
-        // Delete : https://localhost:7179/api/slider/delete/id
+        /// <summary>
+        /// Sliderni o‘chirish
+        /// </summary>
         [HttpDelete("delete/{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> DeleteSliderAsync(int id)
         {
-            try
-            {
-                await _sliderService.DeleteSliderAsync(id);
-                return NoContent(); // Successfully deleted
-            }
-            catch (Exception ex)
-            {
-                return NotFound($"Slider with Id {id} not found. Error: {ex.Message}");
-            }
+            await _sliderService.DeleteSliderAsync(id);
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Slider muvaffaqiyatli o‘chirildi."));
         }
     }
 }
+
 

@@ -5,6 +5,10 @@ using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.AdditionDtos;
 using Table_Chair_Application.Dtos.CreateDtos;
 using Table_Chair_Application.Services.InterfaceServices;
+using Microsoft.AspNetCore.Authorization;
+using Swashbuckle.AspNetCore.Filters;
+using Table_Chair.Examples.BlogExample;
+using Table_Chair_Application.Dtos.BlogDtos;
 
 namespace Table_Chair.Controllers
 {
@@ -20,103 +24,137 @@ namespace Table_Chair.Controllers
             _productService = productService;
             _logger = logger;
         }
-        // GET: https://localhost:7179/api/product/getall
+
+        /// <summary>
+        /// Barcha mahsulotlarni olish
+        /// </summary>
         [HttpGet("getall")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll()
         {
             _logger.LogInformation("Barcha mahsulotlar so'rovi boshlandi.");
             var products = await _productService.GetAllAsync();
             return Ok(products);
         }
-        // GET: https://localhost:7179/api/product/getbyId
+
+        /// <summary>
+        /// Mahsulotni ID orqali olish
+        /// </summary>
         [HttpGet("getbyId/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             _logger.LogInformation("Id {Id} bilan mahsulot so'rovi.", id);
             var product = await _productService.GetByIdAsync(id);
             return Ok(product);
         }
-        // GET: https://localhost:7179/api/product/getbycategory/categoryId
+
+        /// <summary>
+        /// Mahsulotlarni kategoriya bo'yicha olish
+        /// </summary>
         [HttpGet("getbycategory/{categoryId}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetByCategory(int categoryId)
         {
             _logger.LogInformation("Kategoriya {CategoryId} uchun mahsulotlar so'rovi.", categoryId);
             var products = await _productService.GetByCategoryAsync(categoryId);
             return Ok(products);
         }
-        // GET: https://localhost:7179/api/product/search
+
+        /// <summary>
+        /// Mahsulotlarni izlash
+        /// </summary>
         [HttpGet("search")]
+        [AllowAnonymous]
         public IActionResult Search(string searchTerm)
         {
             _logger.LogInformation("Mahsulot qidirilmoqda: {SearchTerm}", searchTerm);
             var result = _productService.SearchProduct(searchTerm);
             return Ok(result);
         }
-        // POST: https://localhost:7179/api/product/create
+
+        /// <summary>
+        /// Yangi mahsulot qo'shish
+        /// </summary>
         [HttpPost("create")]
+        [Authorize(Roles = "Admin,Seller")]
+        [SwaggerRequestExample(typeof(CreateProductDto), typeof(CreateProductDtoExample))]
         public async Task<IActionResult> Add([FromBody] CreateProductDto productDto)
         {
             _logger.LogInformation("Yangi mahsulot qo'shish so'rovi.");
             await _productService.AddAsync(productDto);
             return Ok(new { Message = "Mahsulot muvaffaqiyatli qo'shildi." });
         }
-        // PUT: https://localhost:7179/api/product/update
+
+        /// <summary>
+        /// Mahsulotni yangilash
+        /// </summary>
         [HttpPut("update")]
+        [Authorize(Roles = "Admin,Seller")]
+        [SwaggerRequestExample(typeof(UpdateProductDto), typeof(UpdateProductDtoExample))]
         public async Task<IActionResult> Update([FromBody] UpdateProductDto productDto)
         {
             _logger.LogInformation("Id {Id} bilan mahsulot yangilash so'rovi.", productDto.Id);
             await _productService.UpdateAsync(productDto);
             return Ok(new { Message = "Mahsulot muvaffaqiyatli yangilandi." });
         }
-        // PATCH: https://localhost:7179/api/product/update-stock
+
+        /// <summary>
+        /// Stok miqdorini yangilash
+        /// </summary>
         [HttpPatch("update-stock")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStock(int productId, int quantity)
         {
             _logger.LogInformation("Mahsulot Id {ProductId} stokini yangilash: {Quantity}.", productId, quantity);
             await _productService.UpdateStockAsync(productId, quantity);
             return Ok(new { Message = "Stok miqdori muvaffaqiyatli yangilandi." });
         }
-        // DELETE: https://localhost:7179/api/product/delete/id
+
+        /// <summary>
+        /// Mahsulotni o'chirish
+        /// </summary>
         [HttpDelete("delete/{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             _logger.LogInformation("Id {Id} bilan mahsulotni o'chirish so'rovi.", id);
             await _productService.DeleteAsync(id);
             return Ok(new { Message = "Mahsulot muvaffaqiyatli o'chirildi." });
         }
-        // Post: https://localhost:7179/api/product/filter
+
+        /// <summary>
+        /// Mahsulotlarni filter bo'yicha olish
+        /// </summary>
         [HttpPost("filter")]
+        [AllowAnonymous]
+        [SwaggerRequestExample(typeof(ProductFilterDto), typeof(ProductFilterDtoExample))]
         public async Task<IActionResult> GetFilteredProducts([FromBody] ProductFilterDto filterDto, int pageNumber = 1, int pageSize = 10)
         {
             _logger.LogInformation("Mahsulotlar filtrlanmoqda.");
             var products = await _productService.GetFilteredProductsAsync(filterDto, pageNumber, pageSize);
             return Ok(products);
         }
-        //Delete :https://localhost:7179/api/product/sofdelete/id
+
+        /// <summary>
+        /// Mahsulotni soft delete qilish
+        /// </summary>
         [HttpDelete("sofdelete/{id}")]
+        [Authorize(Roles = "Admin,Seller")]
         public async Task<IActionResult> SoftDeleteAsync(int id)
         {
-            try
-            {
-                await _productService.SoftDeleteAsync(id);
-                return Ok("malumot o'chirildi ");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message + Environment.NewLine + ex.StackTrace);
-                return BadRequest(ex.Message);
-            }
+            await _productService.SoftDeleteAsync(id);
+            return Ok("Malumot o'chirildi");
         }
 
-        // GET: api/products/category/{categoryId}?page=1&pageSize=20
+        /// <summary>
+        /// Paged kategoriya bo'yicha mahsulotlar
+        /// </summary>
         [HttpGet("category/{categoryId:int}")]
-        public async Task<IActionResult> GetProductsByCategory(
-            int categoryId,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+        [AllowAnonymous]
+        public async Task<IActionResult> GetProductsByCategory(int categoryId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var result = await _productService.GetProductsByCategoryAsync(categoryId, page, pageSize);
-
             return Ok(new
             {
                 Products = result.Items,
@@ -126,19 +164,16 @@ namespace Table_Chair.Controllers
                 TotalItems = result.TotalCount
             });
         }
+
+        /// <summary>
+        /// Foydalanuvchiga wishlist holati bilan mahsulotlar
+        /// </summary>
         [HttpGet("{userId}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetProductsWithWishlistInfoAsync(int userId)
         {
-            try
-            {
-                var result = await _productService.GetProductsWithWishlistInfoAsync(userId);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex+  Environment.NewLine + ex.StackTrace);
-                return BadRequest(ex.Message);
-            }
+            var result = await _productService.GetProductsWithWishlistInfoAsync(userId);
+            return Ok(result);
         }
     }
 }

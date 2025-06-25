@@ -23,11 +23,6 @@ namespace Table_Chair_Application.Dtos.CreateDtos
         [MinLength(1, ErrorMessage = "At least one order item is required")]
         public List<OrderItemCreateDto> Items { get; set; } = new List<OrderItemCreateDto>();
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "Total amount must be greater than 0")]
-        public decimal TotalAmount { get; set; }
-
-        // Optional fields with default values
-        public OrderStatus Status { get; set; } = OrderStatus.Created;
     }
 
 }

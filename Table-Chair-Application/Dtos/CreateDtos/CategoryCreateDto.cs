@@ -8,6 +8,7 @@ namespace Table_Chair_Application.Dtos.CreateDtos
 {
     public class CategoryCreateDto
     {
-        public string? Name { get; set; }
+        public string Name { get; set; } = null!;
+        public bool IsActive { get; set; } = true;
     }
 }

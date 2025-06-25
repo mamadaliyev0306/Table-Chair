@@ -13,7 +13,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
     public interface IUserService
     {
         // Foydalanuvchi ma'lumotlari
-        Task<UserResponseDto> GetUserProfileAsync(int userId); // Yangi metod
+        Task<UserProfileDto> GetUserProfileAsync(int userId); // Yangi metod
         Task<UserResponseDto> GetByEmailAsync(string email);
         Task<UserResponseDto> GetByUsernameAsync(string username);
         Task<UserResponseDto> GetByPhoneAsync(string phoneNumber);

@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.UserDtos;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 
 namespace Table_Chair.Controllers
@@ -17,126 +20,121 @@ namespace Table_Chair.Controllers
             _userService = userService;
             _logger = logger;
         }
-        // GET:  https://localhost:7179/api/users/email-exists
+
         [HttpGet("email-exists")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "Email mavjudligini tekshirish")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
         public async Task<IActionResult> EmailExists([FromQuery] string email)
         {
             var exists = await _userService.EmailExistsAsync(email);
-            return Ok(exists);
+            return Ok(ApiResponse<bool>.SuccessResponse(exists));
         }
-        // GET:  https://localhost:7179/api/users/username-exists
+
         [HttpGet("username-exists")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "Username mavjudligini tekshirish")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
         public async Task<IActionResult> UsernameExists([FromQuery] string username)
         {
             var exists = await _userService.UsernameExistsAsync(username);
-            return Ok(exists);
+            return Ok(ApiResponse<bool>.SuccessResponse(exists));
         }
-        // GET:  https://localhost:7179/api/users/phone-exists
+
         [HttpGet("phone-exists")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "Telefon raqami mavjudligini tekshirish")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
         public async Task<IActionResult> PhoneExists([FromQuery] string phone)
         {
             var exists = await _userService.PhoneExistsAsync(phone);
-            return Ok(exists);
+            return Ok(ApiResponse<bool>.SuccessResponse(exists));
         }
-        // GET:  https://localhost:7179/api/users/profile/userId
         [HttpGet("profile/{userId}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Foydalanuvchi profilini olish")]
+        [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), 200)]
         public async Task<IActionResult> GetProfile(int userId)
         {
-            try
-            {
-                var result = await _userService.GetUserProfileAsync(userId);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error while fetching user profile with ID {UserId}", userId);
-                return NotFound(ex.Message);
-            }
+            var profile = await _userService.GetUserProfileAsync(userId);
+            return Ok(ApiResponse<UserProfileDto>.SuccessResponse(profile));
         }
-        // PUT:  https://localhost:7179/api/users/update-profile/userId
+
         [HttpPut("update-profile/{userId}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Foydalanuvchi profilini yangilash")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         public async Task<IActionResult> UpdateProfile(int userId, [FromBody] UserUpdateDto dto)
         {
-            var result = await _userService.UpdateProfileAsync(userId, dto);
-            if (result)
-                return Ok("Profil yangilandi");
+            var updated = await _userService.UpdateProfileAsync(userId, dto);
+            if (!updated)
+                return NotFound(ApiResponse<string>.Failure("Foydalanuvchi topilmadi"));
 
-            return NotFound("Foydalanuvchi topilmadi");
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Profil muvaffaqiyatli yangilandi"));
         }
-        // DELETE:  https://localhost:7179/api/users/softdelete-profile/userId
+
         [HttpDelete("softdelete-profile/{userId}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Foydalanuvchi profilini soft delete qilish")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         public async Task<IActionResult> SoftDeleteProfile(int userId)
         {
-            var result = await _userService.DeleteOwnProfileAsync(userId);
-            if (result)
-                return Ok("Profil o'chirildi");
+            var deleted = await _userService.DeleteOwnProfileAsync(userId);
+            if (!deleted)
+                return NotFound(ApiResponse<string>.Failure("Foydalanuvchi topilmadi yoki allaqachon o‘chirilgan"));
 
-            return NotFound("Foydalanuvchi topilmadi yoki allaqachon o'chirilgan");
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Profil soft delete qilindi"));
         }
-        // DELETE:  https://localhost:7179/api/users/delete-profile/userId
+
         [HttpDelete("delete-profile/{userId}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(Summary = "Foydalanuvchini to'liq o'chirish (admin)")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         public async Task<IActionResult> DeleteProfile(int userId)
         {
             var result = await _userService.DeleteProfileAsync(userId);
-            if (result)
-                return Ok("Profil to'liq o'chirildi");
+            if (!result)
+                return NotFound(ApiResponse<string>.Failure("Foydalanuvchi topilmadi"));
 
-            return NotFound("Foydalanuvchi topilmadi");
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Profil to‘liq o‘chirildi"));
         }
-        // PUT:  https://localhost:7179/api/users/verify-email/userId
+
         [HttpPut("verify-email/{userId}")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "Emailni tasdiqlash")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         public async Task<IActionResult> VerifyEmail(int userId)
         {
-            var result = await _userService.VerifyEmailAsync(userId);
-            if (result)
-                return Ok("Email tasdiqlandi");
+            var verified = await _userService.VerifyEmailAsync(userId);
+            if (!verified)
+                return BadRequest(ApiResponse<string>.Failure("Email tasdiqlanmadi"));
 
-            return BadRequest("Email tasdiqlanmadi");
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Email muvaffaqiyatli tasdiqlandi"));
         }
-        // GET:  https://localhost:7179/api/users/by-email
+
         [HttpGet("by-email")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetByEmail([FromQuery] string email)
         {
-            try
-            {
-                var user = await _userService.GetByEmailAsync(email);
-                return Ok(user);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "User not found with email {Email}", email);
-                return NotFound(ex.Message);
-            }
+            var user = await _userService.GetByEmailAsync(email);
+            return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user));
         }
-        // GET:  https://localhost:7179/api/users/by-username
+
         [HttpGet("by-username")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetByUsername([FromQuery] string username)
         {
-            try
-            {
-                var user = await _userService.GetByUsernameAsync(username);
-                return Ok(user);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "User not found with username {Username}", username);
-                return NotFound(ex.Message);
-            }
+            var user = await _userService.GetByUsernameAsync(username);
+            return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user));
         }
-        // GET:  https://localhost:7179/api/users/by-phone
+
         [HttpGet("by-phone")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetByPhone([FromQuery] string phone)
         {
-            try
-            {
-                var user = await _userService.GetByPhoneAsync(phone);
-                return Ok(user);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "User not found with phone {Phone}", phone);
-                return NotFound(ex.Message);
-            }
+            var user = await _userService.GetByPhoneAsync(phone);
+            return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user));
         }
     }
 }
+
