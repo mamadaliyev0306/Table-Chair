@@ -19,6 +19,7 @@ using Table_Chair_Entity.Enums;
 using Table_Chair_Entity.Models;
 using Microsoft.EntityFrameworkCore;
 using Table_Chair_Application.Dtos.CreateDtos;
+using ValidationException = Table_Chair_Application.Exceptions.ValidationException;
 
 namespace Table_Chair_Application.Services
 {

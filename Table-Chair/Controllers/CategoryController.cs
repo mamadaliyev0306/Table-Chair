@@ -126,6 +126,16 @@ namespace Table_Chair.Controllers
 
             return NoContent();
         }
+        [HttpGet("{categoryId}/products")]
+        public async Task<IActionResult> GetProductsByCategory(int categoryId, int pageNumber = 1, int pageSize = 10)
+        {
+            if (pageNumber <= 0 || pageSize <= 0)
+                return BadRequest("Page number and size must be greater than zero.");
+
+            var pagedProducts = await _categoryService.GetProductsByCategoryAsync(categoryId, pageNumber, pageSize);
+
+            return Ok(pagedProducts);
+        }
     }
 }
 

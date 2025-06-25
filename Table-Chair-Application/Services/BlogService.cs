@@ -1,140 +1,90 @@
 ﻿using AutoMapper;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos.BlogDtos;
 using Table_Chair_Application.Exceptions;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 using Table_Chair_Entity.Models;
 
-namespace Table_Chair_Application.Services
+namespace Table_Chair_Application.Services;
+
+public class BlogService : IBlogService
 {
-    public class BlogService : IBlogService
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+    private readonly ILogger<BlogService> _logger;
+
+    public BlogService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<BlogService> logger)
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
-        private readonly ILogger<BlogService> _logger;
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+        _logger = logger;
+    }
 
-        public BlogService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<BlogService> logger)
-        {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
-            _logger = logger;
-        }
+    public async Task<ApiResponse<BlogDto>> GetByIdAsync(int id)
+    {
+        var entity = await _unitOfWork.Blogs.GetByIdAsync(id);
+        if (entity == null || entity.IsDeleted)
+            throw new NotFoundException($"Blog ID {id} topilmadi.");
 
-        public async Task CreateAsync(BlogCreateDto blogCreateDto)
-        {
-            try
-            {
-                if (blogCreateDto == null)
-                {
-                    _logger.LogWarning("CreateAsync called with null DTO.");
-                    throw new ArgumentNullException(nameof(blogCreateDto));
-                }
+        var dto = _mapper.Map<BlogDto>(entity);
+        return ApiResponse<BlogDto>.SuccessResponse(dto, "Blog topildi");
+    }
 
-                var entity = _mapper.Map<Blog>(blogCreateDto);
-                await _unitOfWork.Blogs.AddAsync(entity);
-                await _unitOfWork.CompleteAsync();
+    public async Task<ApiResponse<IEnumerable<BlogDto>>> GetAllAsync()
+    {
+        var entities = await _unitOfWork.Blogs.GetAllAsync();
+        var filtered = entities.Where(b => !b.IsDeleted);
+        var dtos = _mapper.Map<IEnumerable<BlogDto>>(filtered);
+        return ApiResponse<IEnumerable<BlogDto>>.SuccessResponse(dtos, "Barcha bloglar");
+    }
 
-                _logger.LogInformation("Blog created successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while creating a blog.");
-                throw;
-            }
-        }
+    public async Task<ApiResponse<string>> CreateAsync(BlogCreateDto blogCreateDto)
+    {
+        var entity = _mapper.Map<Blog>(blogCreateDto);
+        entity.PublishedAt = DateTime.UtcNow;
 
-        public async Task DeleteAsync(int id)
-        {
-            try
-            {
-                var entity = await _unitOfWork.Blogs.GetByIdAsync(id);
-                if (entity == null)
-                {
-                    _logger.LogWarning($"DeleteAsync called but Blog with Id {id} not found.");
-                    throw new NotFoundException($"Blog with Id {id} not found.");
-                }
+        await _unitOfWork.Blogs.AddAsync(entity);
+        await _unitOfWork.CompleteAsync();
 
-                _unitOfWork.Blogs.Delete(entity);
-                await _unitOfWork.CompleteAsync();
+        _logger.LogInformation("Blog muvaffaqiyatli yaratildi.");
+        return ApiResponse<string>.SuccessResponse("Blog yaratildi");
+    }
 
-                _logger.LogInformation($"Blog with Id {id} deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error occurred while deleting blog with Id {id}.");
-                throw;
-            }
-        }
+    public async Task<ApiResponse<string>> UpdateAsync(int id, BlogUpdateDto blogUpdateDto)
+    {
+        var entity = await _unitOfWork.Blogs.GetByIdAsync(id);
+        if (entity == null || entity.IsDeleted)
+            throw new NotFoundException($"Blog ID {id} topilmadi.");
 
-        public async Task<IEnumerable<BlogDto>> GetAllAsync()
-        {
-            try
-            {
-                var entities = await _unitOfWork.Blogs.GetAllAsync();
-                _logger.LogInformation("Retrieved all blogs successfully.");
-                return _mapper.Map<IEnumerable<BlogDto>>(entities);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while retrieving all blogs.");
-                throw;
-            }
-        }
+        _mapper.Map(blogUpdateDto, entity);
+        entity.UpdatedAt = DateTime.UtcNow;
 
-        public async Task<BlogDto> GetByIdAsync(int id)
-        {
-            try
-            {
-                var entity = await _unitOfWork.Blogs.GetByIdAsync(id);
-                if (entity == null)
-                {
-                    _logger.LogWarning($"GetByIdAsync called but Blog with Id {id} not found.");
-                    throw new NotFoundException($"Blog with Id {id} not found.");
-                }
+        _unitOfWork.Blogs.Update(entity);
+        await _unitOfWork.CompleteAsync();
 
-                _logger.LogInformation($"Retrieved blog with Id {id} successfully.");
-                return _mapper.Map<BlogDto>(entity);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error occurred while retrieving blog with Id {id}.");
-                throw;
-            }
-        }
+        _logger.LogInformation("Blog yangilandi. ID: {BlogId}", id);
+        return ApiResponse<string>.SuccessResponse("Blog yangilandi");
+    }
 
-        public async Task UpdateAsync(int id, BlogUpdateDto blogUpdateDto)
-        {
-            try
-            {
-                if (blogUpdateDto == null)
-                {
-                    _logger.LogWarning("UpdateAsync called with null DTO.");
-                    throw new ArgumentNullException(nameof(blogUpdateDto));
-                }
+    public async Task<ApiResponse<string>> DeleteAsync(int id)
+    {
+        var entity = await _unitOfWork.Blogs.GetByIdAsync(id);
+        if (entity == null || entity.IsDeleted)
+            throw new NotFoundException($"Blog ID {id} topilmadi.");
 
-                var entity = await _unitOfWork.Blogs.GetByIdAsync(id);
-                if (entity == null)
-                {
-                    _logger.LogWarning($"UpdateAsync called but Blog with Id {id} not found.");
-                    throw new NotFoundException($"Blog with Id {id} not found.");
-                }
+        // Soft delete
+        entity.IsDeleted = true;
+        entity.UpdatedAt = DateTime.UtcNow;
 
-                _mapper.Map(blogUpdateDto, entity); // To'g'ri: Dto -> Entity
-                _unitOfWork.Blogs.Update(entity);
-                await _unitOfWork.CompleteAsync();
+        _unitOfWork.Blogs.Update(entity);
+        await _unitOfWork.CompleteAsync();
 
-                _logger.LogInformation($"Blog with Id {id} updated successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error occurred while updating blog with Id {id}.");
-                throw;
-            }
-        }
+        _logger.LogInformation("Blog soft delete qilindi. ID: {BlogId}", id);
+        return ApiResponse<string>.SuccessResponse("Blog o‘chirildi");
     }
 }
 

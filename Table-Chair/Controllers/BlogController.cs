@@ -33,7 +33,7 @@ namespace Table_Chair.Controllers
         public async Task<IActionResult> GetAll()
         {
             var blogs = await _blogService.GetAllAsync();
-            return Ok(ApiResponse<IEnumerable<BlogDto>>.SuccessResponse(blogs));
+            return Ok(blogs);
         }
 
         [HttpGet("getbyid/{id}")]
@@ -45,7 +45,7 @@ namespace Table_Chair.Controllers
             try
             {
                 var blog = await _blogService.GetByIdAsync(id);
-                return Ok(ApiResponse<BlogDto>.SuccessResponse(blog));
+                return Ok(blog);
             }
             catch (NotFoundException ex)
             {

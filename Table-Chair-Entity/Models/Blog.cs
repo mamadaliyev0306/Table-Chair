@@ -21,5 +21,7 @@ namespace Table_Chair_Entity.Models
         public string? ImageUrl { get; set; }
         [Required] public string? Content { get; set; }
         public DateTime PublishedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

@@ -16,6 +16,10 @@ namespace Table_Chair_Application.Exceptions
         {
             Errors = errors;
         }
+
+        public ValidationException(string? message) : base(message)
+        {
+        }
     }
 
 }

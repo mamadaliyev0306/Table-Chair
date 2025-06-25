@@ -22,7 +22,7 @@ public class AboutInfoController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var result = await _aboutInfoService.GetAllAsync();
-        return Ok(ApiResponse<List<AboutInfoDto>>.SuccessResponse(result.ToList())); 
+        return Ok(result); 
     }
 
     // GET: api/AboutInfo/{id}
@@ -32,7 +32,7 @@ public class AboutInfoController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _aboutInfoService.GetByIdAsync(id);
-        return Ok(ApiResponse<AboutInfoDto>.SuccessResponse(result));
+        return Ok(result);
     }
 
     [HttpPost]
@@ -50,7 +50,7 @@ public class AboutInfoController : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<string>), 200)]
     [ProducesResponseType(typeof(ValidationErrorResponse), 400)]
-    public async Task<IActionResult> Update(int id, [FromBody] AboutInfoCreateDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] AboutInfoUpdateDto dto)
     {
         await _aboutInfoService.UpdateAsync(id, dto);
         return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "AboutInfo successfully updated!"));

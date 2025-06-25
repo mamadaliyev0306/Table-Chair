@@ -37,53 +37,49 @@ namespace Table_Chair_Application.Services
         // Generate access token for user
         public string GenerateAccessToken(UserResponseDto user)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_jwtSettings.Secret);
-
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Name, user.Username),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
 
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
-                SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256Signature),
-                Issuer = _jwtSettings.Issuer,
-                Audience = _jwtSettings.Audience
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
+            return CreateJwtToken(claims, TimeSpan.FromMinutes(_jwtSettings.AccessTokenExpirationMinutes));
         }
+        private string CreateJwtToken(IEnumerable<Claim> claims, TimeSpan expiration)
+        {
+            var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_jwtSettings.Secret));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            var token = new JwtSecurityToken(
+                issuer: _jwtSettings.Issuer,
+                audience: _jwtSettings.Audience,
+                claims: claims,
+                expires: DateTime.UtcNow.Add(expiration),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
         // Generate a random refresh token
         public string GenerateRefreshToken()
         {
-            var randomNumber = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
+            const int tokenSize = 32;
+            Span<byte> randomBytes = stackalloc byte[tokenSize];
+            RandomNumberGenerator.Fill(randomBytes);
+            return Convert.ToBase64String(randomBytes);
         }
-
 
         // Generate email verification token for user
-        public string GenerateEmailVerificationToken(int userId)
-        {
-            return GenerateJwtToken(userId, _jwtSettings.EmailVerificationTokenExpirationHours);
-        }
+        public string GenerateEmailVerificationToken(int userId) =>
+            CreateJwtToken(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) },
+            TimeSpan.FromHours(_jwtSettings.EmailVerificationTokenExpirationHours));
 
-        // Generate password reset token for user
-        public string GeneratePasswordResetToken(int userId)
-        {
-            return GenerateJwtToken(userId, _jwtSettings.PasswordResetTokenExpirationMinutes);
-        }
+        public string GeneratePasswordResetToken(int userId) =>
+            CreateJwtToken(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) },
+            TimeSpan.FromMinutes(_jwtSettings.PasswordResetTokenExpirationMinutes));
+
 
         // Validate access token
         public int? ValidateAccessToken(string token)

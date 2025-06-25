@@ -1,14 +1,12 @@
 ﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.UserDtos;
 using Table_Chair_Application.Exceptions;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 using Table_Chair_Entity.Enums;
 
@@ -18,94 +16,131 @@ namespace Table_Chair_Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        public AdminUserService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly ILogger<AdminUserService> _logger;
+
+        public AdminUserService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<AdminUserService> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _logger = logger;
         }
+
         public async Task<bool> ChangeUserRoleAsync(int userId, Role newRole)
         {
-           var result = await _unitOfWork.AdminUsers.ChangeUserRoleAsync(userId, newRole);
-            return result;
+            _logger.LogInformation("Changing role for user with ID {UserId} to {NewRole}", userId, newRole);
+            var success = await _unitOfWork.AdminUsers.ChangeUserRoleAsync(userId, newRole);
+            if (!success)
+                throw new NotFoundException("Foydalanuvchi topilmadi yoki rol o'zgartirib bo'lmadi");
+
+            return true;
         }
 
         public async Task<bool> CheckUserExistsAsync(int userId)
         {
-           var result = await _unitOfWork.AdminUsers.CheckUserExistsAsync(userId);
-            return result;
+            return await _unitOfWork.AdminUsers.CheckUserExistsAsync(userId);
         }
 
         public async Task<bool> DeleteUserAsync(int id)
         {
-            var result = await _unitOfWork.AdminUsers.GetByIdAsync(id);
-            if (result == null) 
-                return false;
-            _unitOfWork.AdminUsers.Delete(result);
-           await  _unitOfWork.CompleteAsync();
+            var user = await _unitOfWork.AdminUsers.GetByIdAsync(id);
+            if (user == null)
+            {
+                _logger.LogWarning("DeleteUserAsync: User not found with ID {UserId}", id);
+                throw new NotFoundException("Foydalanuvchi topilmadi");
+            }
+
+            _unitOfWork.AdminUsers.Delete(user);
+            await _unitOfWork.CompleteAsync();
+
+            _logger.LogInformation("User with ID {UserId} hard deleted successfully", id);
             return true;
         }
 
         public async Task<AdminUserResponseDto> GetUserByIdAsync(int id)
         {
-            var result = await _unitOfWork.AdminUsers.GetByIdAsync(id);
-            return result == null
-                ? throw new NotFoundException("Foydalanuvchi topilmadi")
-                : _mapper.Map<AdminUserResponseDto>(result);
+            var user = await _unitOfWork.AdminUsers.GetByIdAsync(id);
+            if (user == null)
+            {
+                _logger.LogWarning("GetUserByIdAsync: User not found with ID {UserId}", id);
+                throw new NotFoundException("Foydalanuvchi topilmadi");
+            }
+
+            return _mapper.Map<AdminUserResponseDto>(user);
         }
 
         public async Task<PaginatedList<AdminUserResponseDto>> GetUsersPaginatedAsync(UserFilterDto filter)
         {
-            var result = await _unitOfWork.AdminUsers.GetFilteredUsersAsync(filter);
-            return result==null
-                ? throw new NotFoundException("Foydalanuvchi topilmadi")
-                : _mapper.Map<PaginatedList<AdminUserResponseDto>>(result);
+            var users = await _unitOfWork.AdminUsers.GetFilteredUsersAsync(filter);
+            if (users == null || !users.Items.Any()) 
+                throw new NotFoundException("Hech qanday foydalanuvchi topilmadi");
+
+            return _mapper.Map<PaginatedList<AdminUserResponseDto>>(users);
         }
 
         public async Task<bool> SetUserStatusAsync(int userId, bool isActive)
         {
             var result = await _unitOfWork.AdminUsers.SetUserStatusAsync(userId, isActive);
-            return result;
+            if (!result)
+            {
+                _logger.LogWarning("SetUserStatusAsync: Failed to update status for user with ID {UserId}", userId);
+                throw new NotFoundException("Foydalanuvchi topilmadi yoki holatni o'zgartirib bo'lmadi");
+            }
+            return true;
         }
 
         public async Task<bool> UpdateUserAsync(int id, AdminUserUpdateDto userDto)
         {
             if (userDto == null)
             {
-                return false;
+                _logger.LogWarning("UpdateUserAsync called with null DTO");
+                throw new ValidationException("Yaroqsiz malumotlar yuborildi");
             }
-            var result = await _unitOfWork.AdminUsers.GetByIdAsync(id);
-            if (result == null)
+
+            var user = await _unitOfWork.AdminUsers.GetByIdAsync(id);
+            if (user == null)
             {
-                return false;
+                _logger.LogWarning("UpdateUserAsync: User not found with ID {UserId}", id);
+                throw new NotFoundException("Foydalanuvchi topilmadi");
             }
-            result.UpdatedAt=DateTime.UtcNow;
-           return await _unitOfWork.AdminUsers.ForceUpdateUserAsync(id, userDto);
+
+            user.UpdatedAt = DateTime.UtcNow;
+            var updated = await _unitOfWork.AdminUsers.ForceUpdateUserAsync(id, userDto);
+            return updated;
         }
+
         public async Task<bool> DeleteOwnProfileAsync(int userId)
         {
             var user = await _unitOfWork.AdminUsers.GetByIdAsync(userId);
             if (user == null || user.IsDeleted)
-                return false;
+            {
+                _logger.LogWarning("DeleteOwnProfileAsync: User not found or already deleted with ID {UserId}", userId);
+                throw new NotFoundException("Foydalanuvchi topilmadi yoki allaqachon o'chirilgan");
+            }
 
             user.IsDeleted = true;
             user.UpdatedAt = DateTime.UtcNow;
-
-            _unitOfWork.AdminUsers.Update(user); // <-- Soft delete uchun Update ishlatiladi
+            _unitOfWork.AdminUsers.Update(user);
             await _unitOfWork.CompleteAsync();
             return true;
         }
+
         public async Task<bool> RestoreUserAsync(int userId)
         {
             var user = await _unitOfWork.AdminUsers.GetByIdAsync(userId);
             if (user == null)
-                return false;
+            {
+                _logger.LogWarning("RestoreUserAsync: User not found with ID {UserId}", userId);
+                throw new NotFoundException("Foydalanuvchi topilmadi");
+            }
 
             if (!user.IsDeleted)
-                return true; // Allaqachon tiklangan
+                return true;
 
             user.IsDeleted = false;
             user.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.AdminUsers.Update(user);
             await _unitOfWork.CompleteAsync();
+
             return true;
         }
     }

@@ -45,7 +45,7 @@ namespace Table_Chair.Middlewares
                     status = HttpStatusCode.NotFound;
                     message = exception.Message;
                     break;
-                case BadRequestException:
+                case Table_Chair_Application.Exceptions.BadRequestException:
                     status = HttpStatusCode.BadRequest;
                     message = exception.Message;
                     break;

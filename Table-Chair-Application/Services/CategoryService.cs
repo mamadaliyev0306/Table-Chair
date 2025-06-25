@@ -130,9 +130,31 @@ namespace Table_Chair_Application.Services
             return _mapper.Map<IEnumerable<CategoryDto>>(categories);
         }
 
-        public Task<PaginatedList<ProductDto>> GetProductsByCategoryAsync(int categoryId, int pageNumber, int pageSize)
+        public async Task<PaginatedList<ProductDto>> GetProductsByCategoryAsync(int categoryId, int pageNumber, int pageSize)
         {
-            throw new NotImplementedException();
+            if (categoryId <= 0)
+                throw new ArgumentException("Category ID must be greater than zero.", nameof(categoryId));
+
+            var category = await _unitOfWork.Categories.GetByIdAsync(categoryId);
+            if (category == null)
+                throw new NotFoundException($"Category with ID {categoryId} not found.");
+
+            // Mahsulotlarni filterlab, sortlab, pagination qilib olish
+            var paginatedProducts = await _unitOfWork.Products.GetFilteredSortedPagedAsync(
+                filter: p => p.CategoryId == categoryId && !p.IsDeleted ,
+                orderBy: q => q.OrderByDescending(p => p.CreatedAt),
+                pageNumber: pageNumber,
+                pageSize: pageSize
+            );
+
+            return new PaginatedList<ProductDto>
+            {
+                Items = _mapper.Map<List<ProductDto>>(paginatedProducts.Items),
+                TotalCount = paginatedProducts.TotalCount,
+                PageNumber = paginatedProducts.PageNumber,
+                PageSize = paginatedProducts.PageSize
+            };
         }
+
     }
 }

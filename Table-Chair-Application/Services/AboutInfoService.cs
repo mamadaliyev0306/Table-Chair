@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos.AboutInfoDtos;
+using Table_Chair_Application.Exceptions;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
+using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 using Table_Chair_Entity.Models;
 
@@ -23,117 +25,71 @@ namespace Table_Chair_Application.Services
             _logger = logger;
         }
 
-        public async Task CreateAsync(AboutInfoCreateDto dto)
+        public async Task<ApiResponse<string>> CreateAsync(AboutInfoCreateDto dto)
         {
-            try
-            {
-                if (dto == null)
-                {
-                    _logger.LogWarning("CreateAsync called with null DTO.");
-                    throw new ArgumentNullException(nameof(dto));
-                }
+            if (dto == null)
+                throw new ValidationException("DTO bo'sh bo'lishi mumkin emas.");
 
-                var entity = _mapper.Map<AboutInfo>(dto);
-                
-                await _unitOfWork.AboutInfos.AddAsync(entity);
-                await _unitOfWork.CompleteAsync();
+            var entity = _mapper.Map<AboutInfo>(dto);
+            entity.CreatedAt = DateTime.UtcNow;
+            entity.IsActive = true;
+            entity.IsDeleted = false;
 
-                _logger.LogInformation("AboutInfo created successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while creating AboutInfo.");
-                throw;
-            }
+            await _unitOfWork.AboutInfos.AddAsync(entity);
+            await _unitOfWork.CompleteAsync();
+
+            _logger.LogInformation("AboutInfo yaratildi: {@Entity}", entity);
+            return ApiResponse<string>.SuccessResponse("AboutInfo yaratildi");
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task<ApiResponse<string>> DeleteAsync(int id)
         {
-            try
-            {
-                var entity = await _unitOfWork.AboutInfos.GetByIdAsync(id);
-                if (entity == null)
-                {
-                    _logger.LogWarning($"DeleteAsync called but AboutInfo with Id {id} not found.");
-                    throw new KeyNotFoundException($"AboutInfo with Id {id} not found.");
-                }
+            var entity = await _unitOfWork.AboutInfos.GetByIdAsync(id);
+            if (entity == null || entity.IsDeleted)
+                throw new NotFoundException("AboutInfo");
 
-                _unitOfWork.AboutInfos.Delete(entity);
-                await _unitOfWork.CompleteAsync();
+            entity.IsDeleted = true;
+            entity.DeletedAt = DateTime.UtcNow;
 
-                _logger.LogInformation($"AboutInfo with Id {id} deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error occurred while deleting AboutInfo with Id {id}.");
-                throw;
-            }
+            _unitOfWork.AboutInfos.Update(entity);
+            await _unitOfWork.CompleteAsync();
+
+            return ApiResponse<string>.SuccessResponse("AboutInfo soft delete qilindi.");
         }
 
-        public async Task<IEnumerable<AboutInfoDto>> GetAllAsync()
+        public async Task<ApiResponse<IEnumerable<AboutInfoDto>>> GetAllAsync()
         {
-            try
-            {
-                var entities = await _unitOfWork.AboutInfos.GetAllAsync();
-                _logger.LogInformation("Retrieved all AboutInfos successfully.");
-                return _mapper.Map<IEnumerable<AboutInfoDto>>(entities);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while retrieving all AboutInfos.");
-                throw;
-            }
+            var list = await _unitOfWork.AboutInfos.GetAllAsync();
+            var data = _mapper.Map<IEnumerable<AboutInfoDto>>(list);
+            return ApiResponse<IEnumerable<AboutInfoDto>>.SuccessResponse(data);
         }
 
-        public async Task<AboutInfoDto> GetByIdAsync(int id)
+        public async Task<ApiResponse<AboutInfoDto>> GetByIdAsync(int id)
         {
-            try
-            {
-                var entity = await _unitOfWork.AboutInfos.GetByIdAsync(id);
-                if (entity == null)
-                {
-                    _logger.LogWarning($"GetByIdAsync called but AboutInfo with Id {id} not found.");
-                    throw new KeyNotFoundException($"AboutInfo with Id {id} not found.");
-                }
+            var entity = await _unitOfWork.AboutInfos.GetByIdAsync(id);
+            if (entity == null || entity.IsDeleted)
+                throw new NotFoundException("AboutInfo");
 
-                _logger.LogInformation($"Retrieved AboutInfo with Id {id} successfully.");
-                return _mapper.Map<AboutInfoDto>(entity);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error occurred while retrieving AboutInfo with Id {id}.");
-                throw;
-            }
+            var dto = _mapper.Map<AboutInfoDto>(entity);
+            return ApiResponse<AboutInfoDto>.SuccessResponse(dto);
         }
 
-        public async Task UpdateAsync(int id, AboutInfoCreateDto dto)
+        public async Task<ApiResponse<string>> UpdateAsync(int id,AboutInfoUpdateDto dto)
         {
-            try
-            {
-                if (dto == null)
-                {
-                    _logger.LogWarning("UpdateAsync called with null DTO.");
-                    throw new ArgumentNullException(nameof(dto));
-                }
+            if (dto == null)
+                throw new ValidationException("DTO bo'sh bo'lishi mumkin emas.");
 
-                var entity = await _unitOfWork.AboutInfos.GetByIdAsync(id);
-                if (entity == null)
-                {
-                    _logger.LogWarning($"UpdateAsync called but AboutInfo with Id {id} not found.");
-                    throw new KeyNotFoundException($"AboutInfo with Id {id} not found.");
-                }
+            var entity = await _unitOfWork.AboutInfos.GetByIdAsync(id);
+            if (entity == null || entity.IsDeleted)
+                throw new NotFoundException("AboutInfo");
 
-                _mapper.Map(dto, entity);
-                _unitOfWork.AboutInfos.Update(entity);
-                await _unitOfWork.CompleteAsync();
+            _mapper.Map(dto, entity);
+            entity.UpdatedAt = DateTime.UtcNow;
 
-                _logger.LogInformation($"AboutInfo with Id {id} updated successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error occurred while updating AboutInfo with Id {id}.");
-                throw;
-            }
+            _unitOfWork.AboutInfos.Update(entity);
+            await _unitOfWork.CompleteAsync();
+
+            return ApiResponse<string>.SuccessResponse("AboutInfo muvaffaqiyatli yangilandi.");
         }
     }
 }
