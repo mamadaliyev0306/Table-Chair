@@ -17,7 +17,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<IEnumerable<OrderDto>> GetAllAsync();
         Task<OrderDto?> GetByIdAsync(int id);
         Task<OrderDto> AddAsync(CreateOrderDto orderDto);
-        Task UpdateAsync(OrderDto orderDto);
+        Task UpdateAsync(OrderUpdateDto orderDto);
         Task DeleteAsync(int id);
 
         IQueryable<OrderDto> GetUserOrders(int userId);

@@ -195,6 +195,25 @@ namespace Table_Chair_Application.Services
             await  _unitOfWork.RefreshTokens.RemoveExpiredTokensAsync(tokens);
             await _unitOfWork.CompleteAsync();
         }
+        public (string Token, DateTime ExpiresAt) GenerateAccessTokenWithExpiry(UserResponseDto user)
+        {
+            var claims = new[]
+            {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Name, user.Username),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
+
+            var tokenString = CreateJwtToken(claims, TimeSpan.FromMinutes(_jwtSettings.AccessTokenExpirationMinutes));
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(tokenString);
+            var exp = jwtToken.ValidTo;
+
+            return (tokenString, exp);
+        }
+
     }
 }
 

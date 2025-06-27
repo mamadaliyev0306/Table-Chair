@@ -25,4 +25,4 @@ namespace Table_Chair_Application.Dtos
         public bool IsActive { get; set; }
     }
 }
-}
+

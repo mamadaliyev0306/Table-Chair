@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Table_Chair.Examples.UserExamples;
 using Table_Chair_Application.Responses;
 using Table_Chair.Examples.PasswordExamples;
+using Table_Chair_Entity.Enums;
 
 namespace Table_Chair.Controllers
 {
@@ -84,7 +85,7 @@ namespace Table_Chair.Controllers
         }
 
         [HttpPost("revoke-token")]
-        [Authorize]
+        [Authorize(Roles = nameof(Role.Admin))]
         [ProducesResponseType(typeof(ApiResponse<string>), 200)]
         public async Task<IActionResult> RevokeRefreshToken([FromBody] RefreshTokenRequest dto)
         {
@@ -94,7 +95,7 @@ namespace Table_Chair.Controllers
 
         [HttpPost("logout")]
         [Authorize]
-        [ProducesResponseType(typeof(ApiResponse<string>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<RefreshTokenRequest>), 200)]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest dto)
         {
             await _authService.LogoutAsync(dto.RefreshToken);

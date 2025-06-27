@@ -28,8 +28,7 @@ namespace Table_Chair_Application.Repositorys
                 OrderItems = checkoutDto.Items.Select(item => new OrderItem
                 {
                     ProductId = item.ProductId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice
+                    Quantity = item.Quantity
                 }).ToList()
             };
 

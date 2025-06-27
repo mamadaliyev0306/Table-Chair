@@ -163,7 +163,7 @@ namespace Table_Chair_Application.Services
             await _unitOfWork.CompleteAsync();
         }
 
-        public async Task UpdateAsync(OrderDto dto)
+        public async Task UpdateAsync(OrderUpdateDto dto)
         {
             var order = await _unitOfWork.Orders.GetByIdAsync(dto.Id)
                         ?? throw new NotFoundException($"Order {dto.Id} not found.");

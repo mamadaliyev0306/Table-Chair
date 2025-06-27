@@ -16,6 +16,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         string GenerateRefreshToken();
         string GenerateEmailVerificationToken(int userId);
         string GeneratePasswordResetToken(int userId);
+        (string Token, DateTime ExpiresAt) GenerateAccessTokenWithExpiry(UserResponseDto user);
 
         // Token validation
         int? ValidateAccessToken(string token);

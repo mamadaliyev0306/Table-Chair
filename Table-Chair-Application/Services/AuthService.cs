@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Table_Chair_Application.CacheServices;
 using Table_Chair_Application.Dtos.AdditionDtos;
@@ -201,7 +202,7 @@ namespace Table_Chair_Application.Services
             // Generate tokens
             var tokenExpires = loginDto.RememberMe
                 ? DateTime.UtcNow.AddDays(30)
-                : DateTime.UtcNow.AddHours(2);
+                : DateTime.UtcNow.AddDays(7);
 
             return await GenerateAuthResponseAsync(user, tokenExpires);
         }
@@ -425,14 +426,14 @@ namespace Table_Chair_Application.Services
 
         private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user, DateTime tokenExpires)
         {
-            var accessToken = _tokenService.GenerateAccessToken(_mapper.Map<UserResponseDto>(user));
+            var (accessToken, accessTokenExpiresAt) = _tokenService.GenerateAccessTokenWithExpiry(_mapper.Map<UserResponseDto>(user));
             var refreshToken = _tokenService.GenerateRefreshToken();
 
             var refreshTokenEntity = new RefreshToken
             {
                 Token = refreshToken,
                 UserId = user.Id,
-                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+                ExpiresAt = tokenExpires,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -443,14 +444,19 @@ namespace Table_Chair_Application.Services
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                AccessTokenExpiresAt = tokenExpires,
+                AccessTokenExpiresAt = accessTokenExpiresAt,
                 UserResponse = _mapper.Map<UserResponseDto>(user)
             };
         }
 
+
         private string GenerateRandomCode()
         {
-            return new Random().Next(100000, 999999).ToString(); // 6-digit code
+            var rng = RandomNumberGenerator.Create();
+            var bytes = new byte[4];
+            rng.GetBytes(bytes);
+            var code = BitConverter.ToUInt32(bytes, 0) % 900000 + 100000;
+            return code.ToString();
         }
 
         private bool ValidateVerificationCode(VerificationData verificationData, string code)
