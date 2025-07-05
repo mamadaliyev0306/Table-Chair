@@ -13,6 +13,7 @@ namespace Table_Chair_Application.Dtos
         [EmailAddress]
         public string Email { get; set; } = null!;
         public DateTime SubscribedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
         public bool IsActive { get; set; } = true;
     }
 }

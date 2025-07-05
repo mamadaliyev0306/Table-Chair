@@ -42,6 +42,7 @@ namespace Table_Chair_Application.Services
         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
         new Claim(ClaimTypes.Email, user.Email),
         new Claim(ClaimTypes.Name, user.Username),
+       new Claim(ClaimTypes.Role, user.Role.ToString()),
         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
     };
 
@@ -49,11 +50,21 @@ namespace Table_Chair_Application.Services
         }
         private string CreateJwtToken(IEnumerable<Claim> claims, TimeSpan expiration)
         {
-            var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_jwtSettings.Secret));
+            if (string.IsNullOrEmpty(_jwtSettings.Secret))
+                throw new ArgumentNullException("JwtSettings Secret is not configured");
+
+            if (string.IsNullOrEmpty(_jwtSettings.Audience))
+                throw new ArgumentNullException("JwtSettings Audience is not configured");
+
+            // Yangi tekshiruv: issuer null yoki bo'sh emasligini tekshirish
+            if (string.IsNullOrEmpty(_jwtSettings.Issuer))
+                throw new ArgumentNullException("JwtSettings Issuer is not configured");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _jwtSettings.Issuer,
+                issuer: _jwtSettings.Issuer, // <- Bu qiymat null yoki bo'sh bo'lmasligi kerak
                 audience: _jwtSettings.Audience,
                 claims: claims,
                 expires: DateTime.UtcNow.Add(expiration),
@@ -166,7 +177,7 @@ namespace Table_Chair_Application.Services
                     ValidateAudience = true,
                     ValidAudience = _jwtSettings.Audience,
                     ValidateLifetime = validateLifetime,
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.FromMinutes(15)
                 }, out var validatedToken);
 
                 var jwtToken = (JwtSecurityToken)validatedToken;
@@ -202,6 +213,7 @@ namespace Table_Chair_Application.Services
         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
         new Claim(ClaimTypes.Email, user.Email),
         new Claim(ClaimTypes.Name, user.Username),
+       new Claim(ClaimTypes.Role, user.Role.ToString()),
         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
     };
 

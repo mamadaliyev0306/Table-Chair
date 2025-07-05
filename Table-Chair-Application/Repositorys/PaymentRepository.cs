@@ -38,10 +38,11 @@ namespace Table_Chair_Application.Repositorys
         public async Task<IEnumerable<Payment>> GetByStatusAsync(PaymentStatus status)
         {
             return await _context.Payments
-                .Where (p => p.Status == status)
-                .OrderByDescending(p => p.Status)
+                .Where(p => p.Status == status)
+                .OrderByDescending(p => p.PaidAt ?? p.CreatedAt)
                 .ToListAsync();
         }
+
         public async Task<bool> ExistsAsync(int id)
         {
             return await _context.Payments.AnyAsync(p => p.Id == id);

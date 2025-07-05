@@ -14,7 +14,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<IEnumerable<NewsletterSubscriptionDto>> GetAllAsync();
         Task<NewsletterSubscriptionDto> GetByIdAsync(int id);
         Task AddNewsletterSubscription(NewsletterSubscriptionCreateDto newsletterSubscriptionDto);
-        Task UpdateAsync(NewsletterSubscriptionDto newsletterSubscriptionDto);
+        Task UpdateAsync(NewsletterSubscriptionUpdateDto newsletterSubscriptionDto);
         Task DeleteNewsletterSubscriptionAsync(int id);
         Task SoftDeleteNewsletterSubscriptionAsync(int id);
         Task RestoreNewsletterSubscriptionAsync(int id);

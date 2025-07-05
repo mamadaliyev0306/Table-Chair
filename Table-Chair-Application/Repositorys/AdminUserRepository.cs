@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -78,7 +80,7 @@ namespace Table_Chair_Application.Repositorys
                     u.Username.Contains(filter.SearchTerm) ||
                     u.Email.Contains(filter.SearchTerm) ||
                     u.FirstName.Contains(filter.SearchTerm) ||
-                    u.LastName.Contains(filter.SearchTerm));
+                    (!string.IsNullOrEmpty(u.LastName) && u.LastName.Contains(filter.SearchTerm)));
             }
 
             if (filter.RoleFilter.HasValue)
@@ -94,6 +96,16 @@ namespace Table_Chair_Application.Repositorys
             // Get total count before pagination
             var totalCount = await query.CountAsync();
 
+            // Return empty result if no items found
+            if (totalCount == 0)
+            {
+                return new PaginatedList<User>(
+                    new List<User>(),
+                    0,
+                    filter.PageNumber,
+                    filter.PageSize);
+            }
+
             // Apply pagination
             var items = await query
                 .OrderBy(u => u.Id)
@@ -101,13 +113,7 @@ namespace Table_Chair_Application.Repositorys
                 .Take(filter.PageSize)
                 .ToListAsync();
 
-            return new PaginatedList<User>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageNumber = filter.PageNumber,
-                PageSize = filter.PageSize
-            };
+            return new PaginatedList<User>(items, totalCount, filter.PageNumber, filter.PageSize);
         }
 
         public async Task<bool> SetUserStatusAsync(int userId, bool isActive)
@@ -144,6 +150,63 @@ namespace Table_Chair_Application.Repositorys
             user.IsDeleted = true;
             user.UpdatedAt = DateTime.UtcNow;
             return true;
+        }
+        // Faollik statistikasini hisoblash (UserLoginHistories jadvalisiz)
+        public async Task<List<UserActivityStatsDto>> GetUserActivityStatsAsync(DateRangeDto dateRange)
+        {
+            var startDate = dateRange.StartDate ?? DateTime.UtcNow.AddDays(-30);
+            var endDate = dateRange.EndDate ?? DateTime.UtcNow;
+
+            var result = new List<UserActivityStatsDto>();
+            var days = (endDate - startDate).Days;
+
+            for (var i = 0; i <= days; i++)
+            {
+                var currentDate = startDate.AddDays(i);
+                var nextDate = currentDate.AddDays(1);
+
+                var stats = new UserActivityStatsDto
+                {
+                    Date = currentDate,
+                    NewUsers = await _context.Users
+                        .CountAsync(u => u.CreatedAt >= currentDate && u.CreatedAt < nextDate),
+                    ActiveUsers = await _context.Users
+                        .CountAsync(u => u.LastLoginDate >= currentDate && u.LastLoginDate < nextDate),
+                    // LoginCount ni hisoblamaymiz yoki LastLoginDate asosida taxmin qilamiz
+                    LoginCount = await _context.Users
+                        .CountAsync(u => u.LastLoginDate >= currentDate && u.LastLoginDate < nextDate)
+                };
+
+                result.Add(stats);
+            }
+
+            return result;
+        }
+
+        public async Task<UserCountStatsDto> GetUserCountStatsAsync()
+        {
+            var stats = new UserCountStatsDto
+            {
+                TotalUsers = await _context.Users.CountAsync(),
+                ActiveUsers = await _context.Users.CountAsync(u => u.IsActive && !u.IsDeleted),
+                InactiveUsers = await _context.Users.CountAsync(u => !u.IsActive && !u.IsDeleted),
+                DeletedUsers = await _context.Users.CountAsync(u => u.IsDeleted),
+                UsersByRole = await _context.Users
+                    .Where(u => !u.IsDeleted && u.Role.HasValue)
+                    .GroupBy(u => u.Role!.Value)
+                    .Select(g => new { Role = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.Role, x => x.Count)
+            };
+
+            return stats;
+        }
+        public async Task<List<User>> GetDeletedUsersAsync()
+        {
+            return await _context.Users
+                .IgnoreQueryFilters()
+                .Where(u => u.IsDeleted)
+                .OrderByDescending(u => u.DeletedAt)
+                .ToListAsync();
         }
     }
 }

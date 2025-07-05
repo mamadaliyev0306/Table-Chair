@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Table_Chair_Application.Dtos.ShippingAddressDtos;
 using Table_Chair_Application.Services.InterfaceServices;
 using Microsoft.AspNetCore.Authorization;
+using Table_Chair_Application.Responses;
 
 namespace Table_Chair.Controllers
 {
@@ -22,27 +23,19 @@ namespace Table_Chair.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Yangi yetkazib berish manzili yaratish
-        /// </summary>
-        /// <param name="dto">Manzil ma'lumotlari</param>
-        /// <returns>Natija</returns>
         [HttpPost("create")]
-        [AllowAnonymous] // foydalanuvchi login qilmagan bo‘lishi mumkin
+        [AllowAnonymous]
         public async Task<IActionResult> Create([FromBody] ShippingAddressCreateDto dto)
         {
             _logger.LogInformation("Yangi manzil qo‘shilmoqda");
 
             if (dto == null)
-                return BadRequest("Invalid data.");
+                return BadRequest(ApiResponse<string>.FailResponse("Invalid data."));
 
             await _shippingAddressService.CreateAsync(dto);
-            return Ok(new { message = "Manzil muvaffaqiyatli qo‘shildi" });
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Manzil muvaffaqiyatli qo‘shildi"));
         }
 
-        /// <summary>
-        /// Manzilni ID bo‘yicha o‘chirish
-        /// </summary>
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -50,41 +43,35 @@ namespace Table_Chair.Controllers
 
             var result = await _shippingAddressService.DeleteAsync(id);
             if (!result)
-                return NotFound(new { message = $"ID {id} bilan manzil topilmadi" });
+                return NotFound(ApiResponse<string>.FailResponse($"ID {id} bilan manzil topilmadi"));
 
-            return NoContent();
+            return NoContent(); // Success bo'lsa, hech narsa qaytarilmaydi
         }
 
-        /// <summary>
-        /// ID bo‘yicha manzilni olish
-        /// </summary>
         [HttpGet("getbyId/{id}")]
-        [AllowAnonymous] // ochiq
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
-            
             _logger.LogInformation("ID: {Id} bilan manzilni olish", id);
 
             var result = await _shippingAddressService.GetByIdAsync(id);
-            return Ok(result);
+            return Ok(ApiResponse<ShippingAddressDto>.SuccessResponse(result));
         }
 
-        /// <summary>
-        /// Manzilni yangilash
-        /// </summary>
         [HttpPut("update/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] ShippingAddressUpdateDto dto)
         {
             _logger.LogInformation("ID: {Id} bilan manzil yangilash", id);
 
             if (dto == null)
-                return BadRequest("Invalid data.");
+                return BadRequest(ApiResponse<string>.FailResponse("Invalid data."));
 
             var result = await _shippingAddressService.UpdateAsync(id, dto);
             if (!result)
-                return NotFound(new { message = $"ID {id} bilan manzil topilmadi" });
+                return NotFound(ApiResponse<string>.FailResponse($"ID {id} bilan manzil topilmadi"));
 
-            return Ok(new { message = "Manzil muvaffaqiyatli yangilandi" });
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Manzil muvaffaqiyatli yangilandi"));
         }
     }
+
 }

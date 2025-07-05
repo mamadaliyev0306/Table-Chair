@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Table_Chair_Entity.Enums;
 using Table_Chair_Entity.Models;
 
 namespace Table_Chair_Application.Repositorys.InterfaceRepositorys
@@ -15,5 +16,6 @@ namespace Table_Chair_Application.Repositorys.InterfaceRepositorys
         Task<bool> ExistsAsync(int id);
         Task<Category?> GetByNameAsync(string name);
         Task<IEnumerable<Category>> GetActiveCategoriesAsync();
+        Task<IEnumerable<Category>> GetByTypeAsync(CategoryType type);
     }
 }

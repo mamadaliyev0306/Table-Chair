@@ -18,5 +18,8 @@ namespace Table_Chair_Application.Repositorys.InterfaceRepositorys
         IQueryable<User> GetAdminQueryable();
         Task<PaginatedList<User>> GetFilteredUsersAsync(UserFilterDto filter);
         Task<bool> CheckUserExistsAsync(int userId);
+        Task<UserCountStatsDto> GetUserCountStatsAsync();
+        Task<List<User>> GetDeletedUsersAsync();
+        Task<List<UserActivityStatsDto>> GetUserActivityStatsAsync(DateRangeDto dateRange);
     }
 }

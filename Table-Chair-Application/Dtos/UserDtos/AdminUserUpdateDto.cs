@@ -23,9 +23,6 @@ namespace Table_Chair_Application.Dtos.UserDtos
         [StringLength(20, ErrorMessage = "Telefon raqam 20 belgidan oshmasligi kerak")]
         public string? PhoneNumber { get; set; }
 
-        [EnumDataType(typeof(Role), ErrorMessage = "Noto'g'ri rol tanlandi")]
-        public Role Role { get; set; }
-
         public bool? IsActive { get; set; }
         public bool? EmailVerified { get; set; }
     }

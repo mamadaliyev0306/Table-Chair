@@ -94,7 +94,7 @@ namespace Table_Chair_Application.Services
             if (user == null || user.IsDeleted)
                 return false;
             user.IsDeleted = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.DeletedAt = DateTime.UtcNow;
             _unitOfWork.Users.Update(user);
             await _unitOfWork.CompleteAsync();
             return true;
@@ -105,6 +105,7 @@ namespace Table_Chair_Application.Services
             var result = await _unitOfWork.Users.GetByIdAsync(userId);
             if (result == null)
                 return false;
+            result.DeletedAt = DateTime.UtcNow;
             _unitOfWork.Users.Delete(result);
             await _unitOfWork.CompleteAsync();
             return true;

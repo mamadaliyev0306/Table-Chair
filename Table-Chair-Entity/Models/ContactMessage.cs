@@ -5,11 +5,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Table_Chair_Entity.Sofdelet;
 
 namespace Table_Chair_Entity.Models
 {
     [Table("ContactMessage",Schema ="Models")]
-    public class ContactMessage
+    public class ContactMessage:ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -37,6 +38,7 @@ namespace Table_Chair_Entity.Models
         public DateTime CreatedAt { get; set; } 
 
         public DateTime? UpdatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
     }
 
 }

@@ -28,7 +28,7 @@ namespace Table_Chair_Application.Services
                 throw new ArgumentNullException(nameof(newsletterSubscriptionDto));
 
             var entity = _mapper.Map<NewsletterSubscription>(newsletterSubscriptionDto);
-            entity.SubscribedAt = DateTime.Now;
+            entity.SubscribedAt = DateTime.UtcNow;
             await _unitOfWork.NewsletterSubscriptions.AddAsync(entity);
             await _unitOfWork.CompleteAsync();
         }
@@ -51,7 +51,7 @@ namespace Table_Chair_Application.Services
         }
 
         // Update
-        public async Task UpdateAsync(NewsletterSubscriptionDto newsletterSubscriptionDto)
+        public async Task UpdateAsync(NewsletterSubscriptionUpdateDto newsletterSubscriptionDto)
         {
             if (newsletterSubscriptionDto == null)
                 throw new ArgumentNullException(nameof(newsletterSubscriptionDto));
@@ -61,6 +61,7 @@ namespace Table_Chair_Application.Services
                 throw new Exception($"NewsletterSubscription with ID {newsletterSubscriptionDto.Id} not found.");
 
             _mapper.Map(newsletterSubscriptionDto, existingEntity); // mapping into existing entity
+            existingEntity.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.NewsletterSubscriptions.Update(existingEntity);
             await _unitOfWork.CompleteAsync();
         }
@@ -90,7 +91,7 @@ namespace Table_Chair_Application.Services
         // Restore
         public async Task RestoreNewsletterSubscriptionAsync(int id)
         {
-            var entity = await _unitOfWork.NewsletterSubscriptions.GetByIdAsync(id);
+            var entity = await _unitOfWork.NewsletterSubscriptions.GetByIdIncludingDeletedAsync(id);
             if (entity == null)
                 throw new Exception($"NewsletterSubscription with ID {id} not found.");
 

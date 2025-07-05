@@ -187,13 +187,14 @@ namespace Table_Chair_Application.Services
         {
             var result = await _unitOfWork.Products.GetFilteredProductsAsync(filterDto, pageNumber, pageSize);
 
-            var resultDto = new PaginatedList<ProductDto>
-            {
-                TotalCount = result.TotalCount,
-                PageNumber = result.PageNumber,
-                PageSize = result.PageSize,
-                Items = _mapper.Map<IEnumerable<ProductDto>>(result.Items)
-            };
+            var resultDtoItems = _mapper.Map<List<ProductDto>>(result.Items);
+
+            var resultDto = new PaginatedList<ProductDto>(
+                resultDtoItems,
+                result.TotalCount,
+                result.PageNumber,
+                result.PageSize
+            );
 
             return resultDto;
         }
@@ -237,13 +238,14 @@ namespace Table_Chair_Application.Services
                 pageSize: pageSize
             );
 
-            return new PaginatedList<ProductDto>
-            {
-                Items = _mapper.Map<IEnumerable<ProductDto>>(result.Items),
-                TotalCount = result.TotalCount,
-                PageNumber = result.PageNumber,
-                PageSize = result.PageSize
-            };
+            var mappedItems = _mapper.Map<List<ProductDto>>(result.Items);
+
+            return new PaginatedList<ProductDto>(
+                mappedItems,
+                result.TotalCount,
+                result.PageNumber,
+                result.PageSize
+            );
         }
         public async Task<List<ProductDto>> GetProductsWithWishlistInfoAsync(int userId)
         {

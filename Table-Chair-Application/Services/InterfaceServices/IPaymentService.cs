@@ -13,7 +13,7 @@ namespace Table_Chair_Application.Services.InterfaceServices
     public interface IPaymentService
     {
         Task<PaymentResponseDto> CreatePaymentAsync(PaymentCreateDto paymentDto);
-        Task<PaymentResponseDto> GetPaymentByIdAsync(int id);
+        Task<PaymentResponseDto?> GetPaymentByIdAsync(int? id);
         Task<IEnumerable<PaymentResponseDto>> GetPaymentsByOrderIdAsync(int orderId);
         Task<IEnumerable<PaymentResponseDto>> GetPaymentsByStatusAsync(PaymentStatus status);
         Task<IEnumerable<PaymentResponseDto>> GetPaymentsByDateRangeAsync(DateTime startDate, DateTime endDate);

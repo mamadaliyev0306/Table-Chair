@@ -5,11 +5,13 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Table_Chair_Entity.Migrations;
+using Table_Chair_Entity.Sofdelet;
 
 namespace Table_Chair_Entity.Models
 {
     [Table("Testimonial",Schema ="Models")]
-    public class Testimonial
+    public class Testimonial:ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -26,6 +28,8 @@ namespace Table_Chair_Entity.Models
 
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public bool IsDeleted { get; set; }=false;
+        public DateTime? DeletedAt {  get; set; }
     }
 
 }

@@ -112,7 +112,7 @@ namespace Table_Chair_Application.Services
             }
         }
 
-        public async Task<PaymentResponseDto> GetPaymentByIdAsync(int id)
+        public async Task<PaymentResponseDto?> GetPaymentByIdAsync(int? id)
         {
             var cacheKey = $"payment_{id}";
 
@@ -184,9 +184,11 @@ namespace Table_Chair_Application.Services
                 _logger.LogInformation("Payment statistikasi hisoblanmoqda");
 
                 var now = DateTime.UtcNow;
-                var startOfMonth = new DateTime(now.Year, now.Month, 1);
-                var startOfDay = now.Date;
-                var startOfWeek = now.AddDays(-(int)now.DayOfWeek);
+
+                // ✅ DateTimeKind.Unspecified muammosini hal qilish
+                var startOfMonth = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1), DateTimeKind.Utc);
+                var startOfDay = DateTime.SpecifyKind(now.Date, DateTimeKind.Utc);
+                var startOfWeek = DateTime.SpecifyKind(now.AddDays(-(int)now.DayOfWeek).Date, DateTimeKind.Utc);
 
                 var monthlyPayments = await _unitOfWork.paymentRepository
                     .GetByDateRangeAsync(startOfMonth, now);
@@ -210,7 +212,6 @@ namespace Table_Chair_Application.Services
                         .FirstOrDefault()?.Key.ToString()
                 };
 
-                // 10 daqiqa uchun cache'ga saqlash
                 _memoryCache.Set(cacheKey, stats, TimeSpan.FromMinutes(10));
 
                 return stats;
@@ -221,6 +222,7 @@ namespace Table_Chair_Application.Services
                 throw;
             }
         }
+
 
         public async Task<PaginatedPaymentResponseDto> GetFilteredPaymentsAsync(PaymentFilterDto filter)
         {
@@ -270,8 +272,6 @@ namespace Table_Chair_Application.Services
 
         // ... (Qolgan metodlar shu tartibda takomillashtirilgan holda yoziladi)
 
-        #region Private Helpers
-
         private void ValidatePaymentCreateDto(PaymentCreateDto dto)
         {
             if (dto.Amount <= 0)
@@ -280,7 +280,7 @@ namespace Table_Chair_Application.Services
             if (!Enum.IsDefined(typeof(PaymentMethod), dto.PaymentMethod))
                 throw new ValidationException("Noto'g'ri to'lov usuli");
 
-            if (string.IsNullOrWhiteSpace(dto.Currency))
+            if (!Enum.IsDefined(typeof(CurrencyType), dto.Currency))
                 throw new ValidationException("Valyuta ko'rsatilishi shart");
         }
 
@@ -316,16 +316,19 @@ namespace Table_Chair_Application.Services
 
             return allowedTransitions.TryGetValue(currentStatus, out var allowed) && allowed.Contains(newStatus);
         }
-
-        #endregion
         public async Task<IEnumerable<PaymentResponseDto>> GetPaymentsByStatusAsync(PaymentStatus status)
         {
             _logger.LogInformation("{Status} statusidagi paymentlar olinmoqda", status);
 
             var payments = await _unitOfWork.paymentRepository.GetByStatusAsync(status);
+
             if (!payments.Any())
             {
                 _logger.LogInformation("{Status} statusidagi paymentlar topilmadi", status);
+            }
+            else
+            {
+                _logger.LogInformation("{Count} ta payment topildi", payments.Count());
             }
 
             return _mapper.Map<IEnumerable<PaymentResponseDto>>(payments);
@@ -334,6 +337,9 @@ namespace Table_Chair_Application.Services
 
         public async Task<IEnumerable<PaymentResponseDto>> GetPaymentsByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
+            startDate = DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+            endDate = DateTime.SpecifyKind(endDate, DateTimeKind.Utc);
+
             _logger.LogInformation("{StartDate} dan {EndDate} gacha bo'lgan paymentlar olinmoqda",
                 startDate, endDate);
 
@@ -352,6 +358,7 @@ namespace Table_Chair_Application.Services
 
             return _mapper.Map<IEnumerable<PaymentResponseDto>>(payments);
         }
+
 
         public async Task<PaymentResponseDto> UpdatePaymentStatusAsync(int id, PaymentUpdateDto paymentDto)
         {

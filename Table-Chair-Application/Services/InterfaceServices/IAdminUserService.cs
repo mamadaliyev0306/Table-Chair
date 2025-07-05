@@ -33,5 +33,8 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<bool> CheckUserExistsAsync(int userId); // Yangi metod
         Task<bool> DeleteOwnProfileAsync(int userId);
         Task<bool> RestoreUserAsync(int userId);
+        Task<List<UserActivityStatsDto>> GetUserActivityStatsAsync(DateRangeDto dateRange);
+        Task<UserCountStatsDto> GetUserCountStatsAsync();
+        Task<List<AdminUserResponseDto>> GetDeletedUsersAsync();
     }
 }

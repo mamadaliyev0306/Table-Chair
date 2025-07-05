@@ -1,5 +1,6 @@
 ﻿using Swashbuckle.AspNetCore.Filters;
 using Table_Chair_Application.Dtos.CreateDtos;
+using Table_Chair_Entity.Enums;
 
 namespace Table_Chair.Examples.CategoryExample
 {
@@ -10,7 +11,7 @@ namespace Table_Chair.Examples.CategoryExample
             return new CategoryCreateDto()
             {
                 Name = "name",
-                IsActive = true
+                Type=CategoryType.Product
             };
         }
     }

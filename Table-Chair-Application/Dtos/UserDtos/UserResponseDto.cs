@@ -12,13 +12,13 @@ namespace Table_Chair_Application.Dtos.UserDtos
             public int Id { get; set; }
             public string Username { get; set; } = string.Empty;
             public string FirstName { get; set; } = default!;
-            public string LastName { get; set; } = default!;
+            public string? LastName { get; set; } 
             public string PhoneNumber { get; set; } = string.Empty;
             public string Email { get; set; } = default!;
             public string? AvatarUrl { get; set; }
             public string? Bio { get; set; }
             public DateTime CreatedAt { get; set; }
             public DateTime? UpdatedAt { get; set; }
-            public Role Role { get; set; } 
+            public Role Role { get; set; }
     }
 }

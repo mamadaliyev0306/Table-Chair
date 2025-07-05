@@ -5,11 +5,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Table_Chair_Entity.Sofdelet;
 
 namespace Table_Chair_Entity.Models
 {
     [Table("Product",Schema ="Models")]
-    public class Product
+    public class Product:ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -39,7 +40,7 @@ namespace Table_Chair_Entity.Models
 
         [Range(0, 5)]
         public double AverageRating { get; set; } = 0;  // 0-5 oralig'ida reyting
-
+        public DateTime? DeletedAt { get; set; }
         public int TotalOrders { get; set; } = 0;  // Umumiy buyurtmalar soni
 
         // Yangi hisoblangan narx (readonly property)

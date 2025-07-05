@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.UserDtos;
 using Table_Chair_Application.Exceptions;
+using Table_Chair_Application.Repositorys;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
 using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
@@ -48,7 +49,7 @@ namespace Table_Chair_Application.Services
                 _logger.LogWarning("DeleteUserAsync: User not found with ID {UserId}", id);
                 throw new NotFoundException("Foydalanuvchi topilmadi");
             }
-
+            user.DeletedAt = DateTime.UtcNow;
             _unitOfWork.AdminUsers.Delete(user);
             await _unitOfWork.CompleteAsync();
 
@@ -71,8 +72,16 @@ namespace Table_Chair_Application.Services
         public async Task<PaginatedList<AdminUserResponseDto>> GetUsersPaginatedAsync(UserFilterDto filter)
         {
             var users = await _unitOfWork.AdminUsers.GetFilteredUsersAsync(filter);
-            if (users == null || !users.Items.Any()) 
-                throw new NotFoundException("Hech qanday foydalanuvchi topilmadi");
+
+            // Bo'sh ro'yxat uchun exception o'rniga bo'sh javob qaytaramiz
+            if (users == null || users.Items.Count == 0)
+            {
+                return new PaginatedList<AdminUserResponseDto>(
+                    new List<AdminUserResponseDto>(),
+                    0,
+                    filter.PageNumber,
+                    filter.PageSize);
+            }
 
             return _mapper.Map<PaginatedList<AdminUserResponseDto>>(users);
         }
@@ -118,7 +127,7 @@ namespace Table_Chair_Application.Services
             }
 
             user.IsDeleted = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.DeletedAt = DateTime.UtcNow;
             _unitOfWork.AdminUsers.Update(user);
             await _unitOfWork.CompleteAsync();
             return true;
@@ -142,6 +151,64 @@ namespace Table_Chair_Application.Services
             await _unitOfWork.CompleteAsync();
 
             return true;
+        }
+
+        public async Task<List<UserActivityStatsDto>> GetUserActivityStatsAsync(DateRangeDto dateRange)
+        {
+            try
+            {
+                // Sana oralig'ini tekshirish
+                if (dateRange.StartDate > dateRange.EndDate)
+                {
+                    throw new ArgumentException("Boshlang'ich sana tugash sanasidan katta bo'lishi mumkin emas");
+                }
+
+                // Maksimum 1 yillik ma'lumot olish mumkin
+                if ((dateRange.EndDate ?? DateTime.UtcNow) - (dateRange.StartDate ?? DateTime.UtcNow.AddDays(-30)) > TimeSpan.FromDays(365))
+                {
+                    throw new ArgumentException("Sana oraligi 1 yildan oshmasligi kerak");
+                }
+
+                // UTC vaqtini tasdiqlash
+                if (dateRange.StartDate.HasValue)
+                    dateRange.StartDate = DateTime.SpecifyKind(dateRange.StartDate.Value, DateTimeKind.Utc);
+                if (dateRange.EndDate.HasValue)
+                    dateRange.EndDate = DateTime.SpecifyKind(dateRange.EndDate.Value, DateTimeKind.Utc);
+
+                return await _unitOfWork.AdminUsers.GetUserActivityStatsAsync(dateRange);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Foydalanuvchilar faollik statistikasini olishda xatolik");
+                throw new AppException("Statistika olishda xatolik yuz berdi. Iltimos, qaytadan urunib ko'ring.");
+            }
+        }
+        public async Task<UserCountStatsDto> GetUserCountStatsAsync()
+        {
+            try
+            {
+                var stats = await _unitOfWork.AdminUsers.GetUserCountStatsAsync();
+                return stats;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Foydalanuvchilar statistikasini olishda xatolik");
+                throw new NotFoundException(ex + "Foydalanuvchilar statistikasini olishda xatolik");
+            }
+        }
+        public async Task<List<AdminUserResponseDto>> GetDeletedUsersAsync()
+        {
+            try
+            {
+                var deletedUsers = await _unitOfWork.AdminUsers.GetDeletedUsersAsync();
+                var list = _mapper.Map<List<AdminUserResponseDto>>(deletedUsers);
+                return list;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "O'chirilgan foydalanuvchilarni olishda xatolik");
+                throw new NotFoundException(ex + "O'chirilgan foydalanuvchilarni olishda xatolik");
+            }
         }
     }
 }

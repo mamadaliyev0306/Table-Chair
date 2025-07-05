@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Table_Chair_Application.Dtos;
+using Table_Chair_Application.Dtos.UserDtos;
 using Table_Chair_Entity.Enums;
 using Table_Chair_Entity.Models;
 
@@ -22,5 +24,6 @@ namespace Table_Chair_Application.Repositorys.InterfaceRepositorys
         Task<User> GetUserProfileAsync(int userId);
         Task<User> GetByVerificationTokenAsync(string token);
         Task<bool> ExistsUserIdAsync(int userId);
+
     }
 }

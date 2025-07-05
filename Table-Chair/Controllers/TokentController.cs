@@ -23,25 +23,27 @@ namespace Table_Chair.Controllers
         [HttpPost("validate-email-verification-token")]
         [AllowAnonymous]
         [SwaggerOperation(Summary = "Email verification tokenni tekshirish", Description = "Token yaroqliligini tekshiradi")]
-        public IActionResult ValidateEmailVerificationToken([FromBody] string token)
+        public IActionResult ValidateEmailVerificationToken([FromQuery] string token)
         {
             var userId = _tokenService.ValidateEmailVerificationToken(token);
             if (userId == null)
                 return Unauthorized(ApiResponse<string>.Failure("Token noto‘g‘ri yoki muddati o‘tgan."));
 
-            return Ok(ApiResponse<object>.SuccessResponse(new { UserId = userId }, "Token yaroqli"));
+            return Ok(ApiResponse<TokenValidationResultDto>.SuccessResponse(
+                                  new TokenValidationResultDto { UserId = userId.Value }, "Token yaroqli"));
         }
 
         [HttpPost("validate-password-reset-token")]
         [AllowAnonymous]
         [SwaggerOperation(Summary = "Parol tiklash tokenini tekshirish", Description = "Token yaroqliligini tekshiradi")]
-        public IActionResult ValidatePasswordResetToken([FromBody] string token)
+        public IActionResult ValidatePasswordResetToken([FromQuery] string token)
         {
             var userId = _tokenService.ValidatePasswordResetToken(token);
             if (userId == null)
                 return Unauthorized(ApiResponse<string>.Failure("Token noto‘g‘ri yoki muddati o‘tgan."));
 
-            return Ok(ApiResponse<object>.SuccessResponse(new { UserId = userId }, "Token yaroqli"));
+            return Ok(ApiResponse<TokenValidationResultDto>.SuccessResponse(
+                            new TokenValidationResultDto { UserId = userId.Value }, "Token yaroqli"));
         }
 
     }

@@ -6,6 +6,7 @@ using Table_Chair_Application.Responses;
 using Swashbuckle.AspNetCore.Filters;
 using Table_Chair.Examples.CategoryExample;
 using Microsoft.AspNetCore.Authorization;
+using Table_Chair_Entity.Enums;
 
 namespace Table_Chair.Controllers
 {
@@ -135,6 +136,13 @@ namespace Table_Chair.Controllers
             var pagedProducts = await _categoryService.GetProductsByCategoryAsync(categoryId, pageNumber, pageSize);
 
             return Ok(pagedProducts);
+        }
+
+        [HttpGet("by-type/{type}")]
+        public async Task<IActionResult> GetByType(CategoryType type)
+        {
+            var categories = await _categoryService.GetByTypeAsync(type);
+            return Ok(ApiResponse<IEnumerable<CategoryDto>>.SuccessResponse(categories));
         }
     }
 }

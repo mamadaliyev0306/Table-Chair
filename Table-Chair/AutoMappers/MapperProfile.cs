@@ -9,6 +9,7 @@ using Table_Chair_Application.Services.InterfaceServices;
 using Table_Chair_Application.Dtos.AboutInfoDtos;
 using Table_Chair_Application.Dtos.BlogDtos;
 using Table_Chair_Application.Dtos.ShippingAddressDtos;
+using Table_Chair_Application.Dtos.PaymentDtos;
 
 namespace Table_Chair.AutoMappers
 {
@@ -27,15 +28,23 @@ namespace Table_Chair.AutoMappers
                 .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl));
 
             CreateMap<Payment, PaymentDetailsDto>();
+            CreateMap<PaymentCreateDto, Payment>();
+            CreateMap<PaymentDetailsUpdateDto, Payment>();
+            CreateMap<PaymentFilterDto, Payment>();
+          
 
             // AboutInfo mappings
             CreateMap<AboutInfo, AboutInfoDto>().ReverseMap();
+            CreateMap<AboutInfoCreateDto,AboutInfo>().ReverseMap();
+            CreateMap<AboutInfoUpdateDto, AboutInfo>().ReverseMap();
 
             // Blog mappings
             CreateMap<Blog, BlogDto>().ReverseMap();
             CreateMap<BlogPostCreateDto, Blog>();
+            CreateMap<BlogCreateDto, Blog>();
+            CreateMap<BlogUpdateDto, Blog>();
 
-            // CartItem mappings
+        // CartItem mappings
             CreateMap<CartItem, CartItemDto>().ReverseMap();
             CreateMap<CartItemCreateDto, CartItem>();
             CreateMap<AddToCartDto, CartItem>();
@@ -43,26 +52,33 @@ namespace Table_Chair.AutoMappers
             // Category mappings
             CreateMap<Category, CategoryDto>().ReverseMap();
             CreateMap<CategoryCreateDto, Category>();
-
+            CreateMap<Category, CategoryWithProductsDto>();
+            CreateMap<CategoryUpdateDto, Category>();
             // ContactMessage mappings
             CreateMap<ContactMessage, ContactMessageDto>().ReverseMap();
             CreateMap<ContactMessageCreateDto, ContactMessage>();
             CreateMap<ContactFormDto, ContactMessage>();
 
+
             // Faq mappings
             CreateMap<Faq, FaqDto>().ReverseMap();
             CreateMap<FaqCreateDto, Faq>();
+            CreateMap<FaqUpdateDto, Faq>();
 
             // NewsletterSubscription mappings
             CreateMap<NewsletterSubscription, NewsletterSubscriptionDto>().ReverseMap();
             CreateMap<NewsletterSubscriptionCreateDto, NewsletterSubscription>();
+            CreateMap<NewsletterSubscriptionUpdateDto, NewsletterSubscription>();
+            
 
             // Order mappings
             CreateMap<Order, OrderDto>().ReverseMap();
             CreateMap<Order, OrderResponseDto>();
             CreateMap<Order, OrderSummaryDto>();
             CreateMap<CreateOrderDto, Order>();
-
+            CreateMap<OrderFilterDto, Order>();
+            CreateMap<OrderUpdateDto, Order>();
+            CreateMap<Order,OrderStatusHistoryDto>();
             // OrderItem mappings
             CreateMap<OrderItem, OrderItemDto>()
                 .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl))
@@ -72,6 +88,9 @@ namespace Table_Chair.AutoMappers
             // Payment mappings
             CreateMap<Payment, PaymentResponseDto>().ReverseMap();
             CreateMap<Payment, PaymentHistoryDto>();
+            CreateMap<PaymentUpdateDto, Payment>();
+            CreateMap<Payment, PaymentResponseDto>();
+            CreateMap<PaymentCreateDto, Payment>();
 
             // Product mappings
             CreateMap<Product, ProductDto>()
@@ -80,6 +99,7 @@ namespace Table_Chair.AutoMappers
                 .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name));
             CreateMap<ProductCreateDto, Product>().ReverseMap();
             CreateMap<CreateProductDto, Product>().ReverseMap();
+            CreateMap<UpdateProductDto, Product>();
 
             CreateMap<Product, ProductReviewDto>();
 
@@ -89,6 +109,8 @@ namespace Table_Chair.AutoMappers
 
             // Slider mappings
             CreateMap<Slider, SliderDto>().ReverseMap();
+            CreateMap<SliderUpdateDto, Slider>().ReverseMap();
+            CreateMap<CreateSliderDto, Slider>().ReverseMap();
 
             //OrderStatusHistoryService
             CreateMap<OrderStatusHistory, OrderStatusHistoryDto>();
@@ -96,7 +118,8 @@ namespace Table_Chair.AutoMappers
 
             // Testimonial mappings
             CreateMap<Testimonial, TestimonialDto>().ReverseMap();
-            CreateMap<TestimonialCreateDto, Testimonial>();
+            CreateMap<CreateTestimonialDto, Testimonial>();
+            CreateMap<UpdateTestimonialDto, Testimonial>().ReverseMap();
 
 
 
@@ -136,6 +159,29 @@ namespace Table_Chair.AutoMappers
 
             //Email
             CreateMap<VerifyEmailDto, EmailVerification>();
+
+            // User dan AdminUserResponseDto ga mapping
+            CreateMap<User, AdminUserResponseDto>()
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                // ... barcha kerakli property mappinglari
+                .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive))
+                .ForMember(dest => dest.EmailVerified, opt => opt.MapFrom(src => src.EmailVerified));
+
+            // PaginatedList uchun mapping
+            CreateMap(typeof(PaginatedList<>), typeof(PaginatedList<>))
+                .ConvertUsing(typeof(PaginatedListConverter<,>));
+            CreateMap<PaginatedList<User>, PaginatedList<AdminUserResponseDto>>()
+              .ConvertUsing((src, dest, context) =>
+             {
+               var mappedItems = context.Mapper.Map<List<AdminUserResponseDto>>(src.Items);
+             return new PaginatedList<AdminUserResponseDto>(
+                mappedItems,
+               src.TotalCount,
+               src.PageNumber,
+               src.PageSize);
+                    });
+            // Agar AdminUserResponseDto UserResponseDto dan meros olgan bo'lsa
+            CreateMap<UserResponseDto, AdminUserResponseDto>();
         }
     }
 }

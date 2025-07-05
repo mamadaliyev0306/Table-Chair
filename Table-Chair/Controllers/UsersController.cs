@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.UserDtos;
+using Table_Chair_Application.Exceptions;
 using Table_Chair_Application.Responses;
 using Table_Chair_Application.Services.InterfaceServices;
 
@@ -13,12 +14,10 @@ namespace Table_Chair.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IUserService userService, ILogger<UsersController> logger)
+        public UsersController(IUserService userService)
         {
             _userService = userService;
-            _logger = logger;
         }
 
         [HttpGet("email-exists")]
@@ -56,8 +55,15 @@ namespace Table_Chair.Controllers
         [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), 200)]
         public async Task<IActionResult> GetProfile(int userId)
         {
-            var profile = await _userService.GetUserProfileAsync(userId);
-            return Ok(ApiResponse<UserProfileDto>.SuccessResponse(profile));
+            try
+            {
+                var profile = await _userService.GetUserProfileAsync(userId);
+                return Ok(ApiResponse<UserProfileDto>.SuccessResponse(profile));
+            }
+            catch (Exception ex)
+            {
+                return NotFound(ApiResponse<string>.FailResponse(ex.Message));
+            }
         }
 
         [HttpPut("update-profile/{userId}")]
@@ -124,8 +130,15 @@ namespace Table_Chair.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetByUsername([FromQuery] string username)
         {
-            var user = await _userService.GetByUsernameAsync(username);
-            return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user));
+            try
+            {
+                var user = await _userService.GetByUsernameAsync(username);
+                return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user));
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(ApiResponse<UserResponseDto>.FailResponse(ex.Message));
+            }
         }
 
         [HttpGet("by-phone")]

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Table_Chair_Application.Dtos.AdditionDtos;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
 using Table_Chair_Entity.DbContextModels;
+using Table_Chair_Entity.Enums;
 using Table_Chair_Entity.Models;
 
 namespace Table_Chair_Application.Repositorys
@@ -43,6 +44,13 @@ namespace Table_Chair_Application.Repositorys
         {
             return await _context.Categories.Where(c => c.IsActive).ToListAsync();
         }
+        public async Task<IEnumerable<Category>> GetByTypeAsync(CategoryType type)
+        {
+            return await _context.Categories
+                .Where(c => c.Type == type && c.IsActive && !c.IsDeleted)
+                .ToListAsync();
+        }
+
 
     }
 }

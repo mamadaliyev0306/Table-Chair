@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
 using Table_Chair_Entity.DbContextModels;
+using Table_Chair_Entity.Sofdelet;
 
 namespace Table_Chair_Application.Repositorys
 {
@@ -27,38 +28,32 @@ namespace Table_Chair_Application.Repositorys
             _context.Set<TEntity>().Remove(entity);
         }
 
-        //SofDelete
         public Task SoftDeleteAsync(TEntity entity)
         {
-            var property = entity.GetType().GetProperty("IsDeleted");
-            if (property != null && property.PropertyType == typeof(bool))
+            if (entity is ISoftDeletable deletable)
             {
-                property.SetValue(entity, true);
+                deletable.IsDeleted = true;
+                deletable.DeletedAt = DateTime.UtcNow;
                 Update(entity);
-            }
-            else
-            {
-                throw new InvalidOperationException("Entity does not support soft delete.");
+                return Task.CompletedTask;
             }
 
-            return Task.CompletedTask;
+            throw new InvalidOperationException("Entity does not support soft delete.");
         }
-        //Restore
+
         public Task RestoreAsync(TEntity entity)
         {
-            var property = entity.GetType().GetProperty("IsDeleted");
-            if (property != null && property.PropertyType == typeof(bool))
+            if (entity is ISoftDeletable deletable)
             {
-                property.SetValue(entity, false);
+                deletable.IsDeleted = false;
+                deletable.DeletedAt = null;
                 Update(entity);
-            }
-            else
-            {
-                throw new InvalidOperationException("Entity does not support restore operation.");
+                return Task.CompletedTask;
             }
 
-            return Task.CompletedTask;
+            throw new InvalidOperationException("Entity does not support restore.");
         }
+
 
 
         // Update
@@ -131,12 +126,12 @@ namespace Table_Chair_Application.Repositorys
                 .ToListAsync();
         }
 
-        // Filtering + Sorting + Paging (PaginatedList return)
+        // Fix for CS7036: Update the instantiation of PaginatedList<TEntity> to include all required arguments.  
         public async Task<PaginatedList<TEntity>> GetFilteredSortedPagedAsync(
-            Expression<Func<TEntity, bool>>? filter = null,
-            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-            int pageNumber = 1,
-            int pageSize = 10)
+           Expression<Func<TEntity, bool>>? filter = null,
+           Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+           int pageNumber = 1,
+           int pageSize = 10)
         {
             IQueryable<TEntity> query = _context.Set<TEntity>();
 
@@ -146,7 +141,7 @@ namespace Table_Chair_Application.Repositorys
             if (orderBy != null)
                 query = orderBy(query);
             else
-                query = query.OrderBy(e => true); // no specific ordering
+                query = query.OrderBy(e => true); // no specific ordering  
 
             int totalCount = await query.CountAsync();
 
@@ -155,13 +150,7 @@ namespace Table_Chair_Application.Repositorys
                 .Take(pageSize)
                 .ToListAsync();
 
-            return new PaginatedList<TEntity>
-            {
-                TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                Items = items
-            };
+            return new PaginatedList<TEntity>(items, totalCount, pageNumber, pageSize);
         }
 
         // Count
@@ -177,6 +166,14 @@ namespace Table_Chair_Application.Repositorys
         {
             return await _context.Set<TEntity>().AnyAsync(predicate);
         }
+
+        public async Task<TEntity?> GetByIdIncludingDeletedAsync(int id)
+        {
+            return await _context.Set<TEntity>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
+        }
+
     }
 }
 

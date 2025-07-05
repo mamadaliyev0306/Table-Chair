@@ -42,6 +42,7 @@ public class AboutInfoController : ControllerBase
     [SwaggerRequestExample(typeof(AboutInfoCreateDto), typeof(AboutInfoCreateDtoExample))]
     public async Task<IActionResult> Create([FromBody] AboutInfoCreateDto dto)
     {
+
         await _aboutInfoService.CreateAsync(dto);
         return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "AboutInfo successfully created!"));
     }

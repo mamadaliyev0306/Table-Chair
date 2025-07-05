@@ -83,6 +83,7 @@ public class FurnitureDbContext : DbContext
             !rt.IsRevoked &&
             rt.ExpiresAt > DateTime.UtcNow);
 
+        modelBuilder.Entity<NewsletterSubscription>().HasQueryFilter(n => !n.IsDeleted);
 
         // Qo'shimcha konfiguratsiyalar
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FurnitureDbContext).Assembly);

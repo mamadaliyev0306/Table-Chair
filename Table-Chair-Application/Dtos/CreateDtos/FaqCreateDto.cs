@@ -9,7 +9,7 @@ namespace Table_Chair_Application.Dtos.CreateDtos
     public class FaqCreateDto
     {
         public int CategoryId { get; set; }
-        public string Question { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
         public string Answer { get; set; } = string.Empty;
     }
 }

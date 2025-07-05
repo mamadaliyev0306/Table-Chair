@@ -6,11 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Table_Chair_Entity.Enums;
+using Table_Chair_Entity.Sofdelet;
 
 namespace Table_Chair_Entity.Models
 {
     [Table("Orders", Schema = "ordering")]
-    public class Order
+    public class Order:ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -39,6 +40,7 @@ namespace Table_Chair_Entity.Models
         public DateTime UpdatedAt { get; set; }
         public bool IsDeleted { get; set; }=false;
         public DateTime? CancelledAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
         public decimal TotalAmount { get; set; } 
     }
 }

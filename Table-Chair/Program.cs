@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer; // Agar JWT ishlatilsa
 using Microsoft.IdentityModel.Tokens; // Agar JWT ishlatilsa
+using Scalar.AspNetCore;
 using Serilog;
 using StackExchange.Redis;
 using System.Text;
@@ -20,30 +21,29 @@ namespace Table_Chair
             builder.Services.AddOpenApi();
             builder.Services.AddConfigurationServices(configuration);
             builder.Services.AddMemoryCache();
-            builder.Host.SeriloConfig(configuration);
-
+          //  builder.Host.SeriloConfig(configuration);
+          builder.Services.AddLogging();
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
             {
+                app.MapOpenApi();
                 app.UseSwagger();
                 app.UseSwaggerUI();
-                app.MapOpenApi();
+                app.MapScalarApiReference();
             }
 
             if (!app.Environment.IsProduction())
             {
-                app.UseHttpsRedirection(); 
+                app.UseHttpsRedirection();
             }
-
-            app.UseCors("AllowAllOrigins");
+           // app.UseCors("AllowAllOrigins");
+            app.UseStaticFiles();
+            app.UseDefaultFiles();
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddlewaresDI();
             app.MapControllers();
-            app.UseDefaultFiles();
-            app.UseStaticFiles();
-
             app.Run();
         }
     }

@@ -10,7 +10,6 @@ namespace Table_Chair_Application.Dtos
     {
         public int CategoryId { get; set; }
         public string Title { get; set; } = null!;
-        public string? CategoryName { get; set; }
         public string Answer { get; set; } = string.Empty;
     }
 }

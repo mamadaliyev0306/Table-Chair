@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using Microsoft.EntityFrameworkCore;
+using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.UserDtos;
 using Table_Chair_Application.Exceptions;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
@@ -11,7 +14,6 @@ namespace Table_Chair_Application.Repositorys
     public class UserRepository : GenericRepository<User>, IUserRepository
     {
         private readonly FurnitureDbContext _context;
-
         public UserRepository(FurnitureDbContext context) : base(context)
         {
             _context = context;
@@ -120,5 +122,6 @@ namespace Table_Chair_Application.Repositorys
 
         public async Task<bool> ExistsUserIdAsync(int userId)=>
             await _context.Users.AnyAsync(u=>u.Id == userId);
+
     }
 }

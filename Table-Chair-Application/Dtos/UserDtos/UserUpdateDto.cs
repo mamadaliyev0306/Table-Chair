@@ -7,17 +7,29 @@ using System.Threading.Tasks;
 
 namespace Table_Chair_Application.Dtos.UserDtos
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class UserUpdateDto
     {
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Ism 2-100 belgi oralig'ida bo'lishi kerak")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Username 3-50 belgidan iborat bo'lishi kerak!")]
+        public string? Username { get; set; }
+
+        [StringLength(100, ErrorMessage = "Ism 100 belgidan oshmasligi kerak!")]
         public string? FirstName { get; set; }
 
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Familiya 2-100 belgi oralig'ida bo'lishi kerak")]
+        [StringLength(100, ErrorMessage = "Familiya 100 belgidan oshmasligi kerak!")]
         public string? LastName { get; set; }
 
-        [Phone(ErrorMessage = "Noto'g'ri telefon raqam formati")]
-        [StringLength(20, ErrorMessage = "Telefon raqam 20 belgidan oshmasligi kerak")]
+        [Phone(ErrorMessage = "Telefon raqam formati noto'g'ri!")]
+        public string? PhoneNumber { get; set; }
+
+        [EmailAddress(ErrorMessage = "Email formati noto'g'ri!")]
+        public string? Email { get; set; }
+
+        [Url(ErrorMessage = "Profil rasmi URL formati noto'g'ri!")]
         public string? AvatarUrl { get; set; }
+
+        [StringLength(500, ErrorMessage = "Bio 500 belgidan oshmasligi kerak!")]
         public string? Bio { get; set; }
     }
 }

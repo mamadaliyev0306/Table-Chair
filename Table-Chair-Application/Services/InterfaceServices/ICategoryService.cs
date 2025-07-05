@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Table_Chair_Application.Dtos;
 using Table_Chair_Application.Dtos.CreateDtos;
+using Table_Chair_Entity.Enums;
 using Table_Chair_Entity.Models;
 
 namespace Table_Chair_Application.Services.InterfaceServices
@@ -23,5 +24,6 @@ namespace Table_Chair_Application.Services.InterfaceServices
         Task<bool> ExistsAsync(int id);
         Task<IEnumerable<CategoryDto>> GetActiveCategoriesAsync();
         Task<PaginatedList<ProductDto>> GetProductsByCategoryAsync(int categoryId, int pageNumber, int pageSize);
+        Task<IEnumerable<CategoryDto>> GetByTypeAsync(CategoryType type);
     }
 }

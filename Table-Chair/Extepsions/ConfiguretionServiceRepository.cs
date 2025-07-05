@@ -28,11 +28,12 @@ namespace Table_Chair.Extepsions
         public static IServiceCollection AddConfigurationServices(this IServiceCollection services, IConfiguration configuration)
         {
             var redisConnectionString = configuration.GetConnectionString("Redis")
-    ?? throw new InvalidOperationException("Redis connection string is missing");
+                ?? throw new InvalidOperationException("Redis connection string is missing");
 
-            services.AddMemoryCache(); // MemoryCache
 
-            // Redis konfiguratsiyasi
+            services.AddMemoryCache(); // MemoryCache  
+
+            // Redis konfiguratsiyasi  
             services.AddSingleton<IConnectionMultiplexer>(sp =>
             {
                 var configOptions = ConfigurationOptions.Parse(redisConnectionString, true);
@@ -41,11 +42,11 @@ namespace Table_Chair.Extepsions
                 return ConnectionMultiplexer.Connect(configOptions);
             });
 
-            // Redis va Memory uchun alohida service lar
+            // Redis va Memory uchun alohida service lar  
             services.AddSingleton<RedisCacheService>();
             services.AddSingleton<MemoryCacheService>();
 
-            // FallbackCacheService
+            // FallbackCacheService  
             services.AddSingleton<ICacheService>(sp =>
             {
                 var redisService = sp.GetRequiredService<RedisCacheService>();
@@ -53,46 +54,51 @@ namespace Table_Chair.Extepsions
                 return new FallbackCacheService(redisService, memoryService);
             });
 
-            //  Redis Distributed Cache
+            // Redis Distributed Cache  
             services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = redisConnectionString;
                 options.InstanceName = "AuthService_";
             });
-            //  JWT konfiguratsiyasi
+
+            // JWT konfiguratsiyasi  
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = configuration["Jwt:Issuer"],
-                    ValidAudience = configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key is missing"))
-                    ),
-                    ClockSkew = TimeSpan.Zero
-                };
-            });
+         .AddJwtBearer(options =>
+        {
+          options.TokenValidationParameters = new TokenValidationParameters
+          {
+            ValidateIssuer = true,
+            ValidIssuer = configuration["JwtSettings:Issuer"], 
+            ValidateAudience = true,
+            ValidAudience = configuration["JwtSettings:Audience"],
+            ValidateLifetime = true,
+             IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"]!)
+            ),
+              ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.FromMinutes(15)
+            };
+          });
 
-            //  CORS
+           // CORS
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowAllOrigins", policy =>
                 {
-                    policy.WithOrigins("https://tezshop.onrender.com")
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials();
+                    policy
+                        .WithOrigins("https://tezshop.onrender.com")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
                 });
             });
+            services.AddHttpClient<ClickGateway>();
+            services.AddHttpClient<PaymeGateway>();
+            services.AddHttpClient<PayPalGateway>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IEmailSender, EmailSender>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -100,41 +106,43 @@ namespace Table_Chair.Extepsions
             services.AddScoped<IPaymentGatewayFactory, PaymentGatewayFactory>();
             services.AddTransient<DataSeeder>();
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
-            services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+            services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
             services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
             services.Scan(scan => scan
-                .FromAssemblies(typeof(UserRepository).Assembly) // Repository joylashgan project
+                .FromAssemblies(typeof(UserRepository).Assembly) // Repository joylashgan project  
                 .AddClasses(classes => classes.Where(c => c.Name.EndsWith("Repository")))
                 .AsMatchingInterface()
                 .WithLifetime(ServiceLifetime.Scoped));
-            // Servicelarni qo‘shish
+
+            // Servicelarni qo‘shish  
             services.Scan(scan => scan
-                .FromAssemblies(typeof(UserService).Assembly) // Service joylashgan project
+                .FromAssemblies(typeof(UserService).Assembly) // Service joylashgan project  
                 .AddClasses(classes => classes.Where(c => c.Name.EndsWith("Service")))
                 .AsMatchingInterface()
                 .WithLifetime(ServiceLifetime.Scoped));
-            // AutoMapperni qo‘shish
-            services.AddAutoMapper(Assembly.GetExecutingAssembly());
+
+            // AutoMapperni qo‘shish  
+         //   services.AddAutoMapper(Assembly.GetExecutingAssembly());
             services.AddAutoMapper(typeof(MapperProfile));
 
-            //Swaggerni qo‘shish
+            // Swaggerni qo‘shish  
             services.AddSwaggerConfigurations();
 
-            //DbContextni qo‘shish
+            // DbContextni qo‘shish  
             services.AddDbContext<FurnitureDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-            //Filters
+
+            // Filters  
             services.AddScoped<GlobalExceptionFilter>();
 
             services.AddControllers(options =>
             {
                 options.Filters.Add<GlobalExceptionFilter>();
             });
-            //CorrelationId
+
+            // CorrelationId  
             services.AddScoped<ICorrelationIdGenerator, CorrelationIdGenerator>();
 
-            //Serilog
-            
             return services;
         }
     }

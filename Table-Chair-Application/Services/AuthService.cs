@@ -61,10 +61,10 @@ namespace Table_Chair_Application.Services
             _distributedCache = distributedCache;
             _redis = connectionMultiplexer;
             _cacheService = cacheService;
-            var jwtSettingsSection = configuration.GetSection("Jwt");
+            var jwtSettingsSection = configuration.GetSection("JwtSettings");
             if (jwtSettingsSection == null)
             {
-                throw new InvalidOperationException("Jwt settings section is missing in the configuration.");
+                throw new InvalidOperationException("JwtSettings settings section is missing in the configuration.");
             }
 
             _jwtSettings = jwtSettingsSection.Get<JwtSettings>() ?? throw new InvalidOperationException("Jwt settings are not properly configured.");
@@ -190,12 +190,15 @@ namespace Table_Chair_Application.Services
             // Find user
             var user = await FindUserByLogin(loginDto.Login);
 
-            // Ensure user is not null before proceeding
             if (user == null)
             {
                 throw new AppException("Invalid login credentials");
             }
 
+            // Update last login date
+            user.LastLoginDate = DateTime.UtcNow;
+             _unitOfWork.Users.Update(user);
+            await _unitOfWork.CompleteAsync();
             // Validate credentials
             ValidateUserForLogin(user, loginDto.Password);
 
@@ -426,6 +429,7 @@ namespace Table_Chair_Application.Services
 
         private async Task<AuthResponseDto> GenerateAuthResponseAsync(User user, DateTime tokenExpires)
         {
+            _logger.LogInformation("Using Issuer: {Issuer}", _jwtSettings.Issuer);
             var (accessToken, accessTokenExpiresAt) = _tokenService.GenerateAccessTokenWithExpiry(_mapper.Map<UserResponseDto>(user));
             var refreshToken = _tokenService.GenerateRefreshToken();
 

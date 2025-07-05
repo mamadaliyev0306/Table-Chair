@@ -8,6 +8,7 @@ using Table_Chair_Application.Dtos.CreateDtos;
 using Table_Chair_Application.Exceptions;
 using Table_Chair_Application.Repositorys.InterfaceRepositorys;
 using Table_Chair_Application.Services.InterfaceServices;
+using Table_Chair_Entity.Enums;
 using Table_Chair_Entity.Models;
 
 namespace Table_Chair_Application.Services
@@ -139,21 +140,25 @@ namespace Table_Chair_Application.Services
             if (category == null)
                 throw new NotFoundException($"Category with ID {categoryId} not found.");
 
-            // Mahsulotlarni filterlab, sortlab, pagination qilib olish
+            // Mahsulotlarni filterlab, sortlab, pagination qilib olish  
             var paginatedProducts = await _unitOfWork.Products.GetFilteredSortedPagedAsync(
-                filter: p => p.CategoryId == categoryId && !p.IsDeleted ,
+                filter: p => p.CategoryId == categoryId && !p.IsDeleted,
                 orderBy: q => q.OrderByDescending(p => p.CreatedAt),
                 pageNumber: pageNumber,
                 pageSize: pageSize
             );
 
-            return new PaginatedList<ProductDto>
-            {
-                Items = _mapper.Map<List<ProductDto>>(paginatedProducts.Items),
-                TotalCount = paginatedProducts.TotalCount,
-                PageNumber = paginatedProducts.PageNumber,
-                PageSize = paginatedProducts.PageSize
-            };
+            return new PaginatedList<ProductDto>(
+                _mapper.Map<List<ProductDto>>(paginatedProducts.Items),
+                paginatedProducts.TotalCount,
+                paginatedProducts.PageNumber,
+                paginatedProducts.PageSize
+            );
+        }
+        public async Task<IEnumerable<CategoryDto>> GetByTypeAsync(CategoryType type)
+        {
+            var categories = await _unitOfWork.Categories.GetByTypeAsync(type);
+            return _mapper.Map<IEnumerable<CategoryDto>>(categories);
         }
 
     }

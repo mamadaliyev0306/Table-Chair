@@ -55,7 +55,7 @@ public class NewsletterSubscriptionController : ControllerBase
     [Authorize(Roles = "Admin")]
     [SwaggerOperation(Summary = "Obunani yangilash")]
     [ProducesResponseType(204)]
-    public async Task<IActionResult> Update([FromBody] NewsletterSubscriptionDto dto)
+    public async Task<IActionResult> Update([FromBody] NewsletterSubscriptionUpdateDto dto)
     {
         await _service.UpdateAsync(dto);
         return NoContent();

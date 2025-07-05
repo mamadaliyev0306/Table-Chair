@@ -88,7 +88,7 @@ namespace Table_Chair.Controllers
         public async Task<IActionResult> UpdateStatus(int orderId, [FromQuery] OrderStatus status)
         {
             await _orderService.UpdateOrderStatusAsync(orderId, status);
-            return Ok(ApiResponse<string>.SuccessResponse("Status muvaffaqiyatli yangilandi"));
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty,"Status muvaffaqiyatli yangilandi"));
         }
 
         [HttpPost("{orderId:int}/cancel")]
@@ -97,7 +97,7 @@ namespace Table_Chair.Controllers
         public async Task<IActionResult> CancelOrder(int orderId)
         {
             await _orderService.CancelOrderAsync(orderId);
-            return Ok(ApiResponse<string>.SuccessResponse("Buyurtma bekor qilindi"));
+            return Ok(ApiResponse<string>.SuccessResponse(string.Empty,"Buyurtma bekor qilindi"));
         }
 
         [HttpGet("{orderId:int}/total")]

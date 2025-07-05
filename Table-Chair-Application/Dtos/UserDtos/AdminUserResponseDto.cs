@@ -12,7 +12,6 @@ namespace Table_Chair_Application.Dtos.UserDtos
         public bool IsActive { get; set; }
         public bool EmailVerified { get; set; }
         public bool IsDelete { get; set; }
-        public DateTime? CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
         public DateTime? LastLoginDate { get; set; }
     }

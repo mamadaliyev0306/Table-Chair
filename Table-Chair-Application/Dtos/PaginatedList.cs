@@ -8,10 +8,18 @@ namespace Table_Chair_Application.Dtos
 {
     public class PaginatedList<T>
     {
-        public int TotalCount { get; set; } // Barcha mahsulotlar soni
-        public int TotalPages => (int)Math.Ceiling((decimal)TotalCount / PageSize); // Barcha sahifalar soni
-        public int PageNumber { get; set; } // Joriy sahifa
-        public int PageSize { get; set; } // Sahifadagi elementlar soni
-        public IEnumerable<T> Items { get; set; } = null!; // Mahsulotlar ro‘yxati
+        public List<T> Items { get; }
+        public int TotalCount { get; }
+        public int PageNumber { get; }
+        public int PageSize { get; }
+        public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+
+        public PaginatedList(List<T> items, int totalCount, int pageNumber, int pageSize)
+        {
+            Items = items;
+            TotalCount = totalCount;
+            PageNumber = pageNumber;
+            PageSize = pageSize;
+        }
     }
 }

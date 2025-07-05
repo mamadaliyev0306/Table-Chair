@@ -30,5 +30,7 @@ namespace Table_Chair_Application.Repositorys.InterfaceRepositorys
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         int pageNumber = 1,
         int pageSize = 10);
+
+        Task<TEntity?> GetByIdIncludingDeletedAsync(int id);
     }
 }

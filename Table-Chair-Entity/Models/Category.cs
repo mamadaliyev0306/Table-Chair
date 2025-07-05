@@ -5,16 +5,20 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Table_Chair_Entity.Enums;
+using Table_Chair_Entity.Sofdelet;
 
 namespace Table_Chair_Entity.Models
 {
     [Table("Category",Schema ="Models")]
-    public class Category
+    public class Category:ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
         [Required, MaxLength(300)]
         public string Name { get; set; } = null!;
+        [Required]
+        public CategoryType Type { get; set; } 
         public virtual ICollection<Product> Products { get; set; } = new List<Product>();
         public virtual ICollection<Blog> Blogs { get; set; } = new List<Blog>();
         public virtual ICollection<Faq> Faqs { get; set; } = new List<Faq>();
@@ -24,5 +28,6 @@ namespace Table_Chair_Entity.Models
         public bool IsActive { get; set; }=true;
         // Soft delete uchun maydon
         public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
     }
 }
